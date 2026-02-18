@@ -153,16 +153,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
     processedText = processedText.replace(/`([^`]+)`/g, '⟨CODE⟩$1⟨/CODE⟩');
     // Strikethrough ~~text~~
     processedText = processedText.replace(/~~(.+?)~~/g, '⟨STRIKE⟩$1⟨/STRIKE⟩');
+    // Math expressions $..$ and $$..$$
+    processedText = processedText.replace(/\$\$(.+?)\$\$/g, '⟨MATH⟩$1⟨/MATH⟩');
+    processedText = processedText.replace(/\$([^$]+?)\$/g, '⟨MATH⟩$1⟨/MATH⟩');
     // Clean up ^^ markers that might remain
     processedText = processedText.replace(/\^\^(.+?)\^\^/g, '⟨HEADING⟩$1⟨/HEADING⟩');
 
     // Now convert markers to React elements
-    const segments = processedText.split(/(⟨BOLD⟩|⟨\/BOLD⟩|⟨ITALIC⟩|⟨\/ITALIC⟩|⟨CODE⟩|⟨\/CODE⟩|⟨STRIKE⟩|⟨\/STRIKE⟩|⟨HEADING⟩|⟨\/HEADING⟩)/);
+    const segments = processedText.split(/(⟨BOLD⟩|⟨\/BOLD⟩|⟨ITALIC⟩|⟨\/ITALIC⟩|⟨CODE⟩|⟨\/CODE⟩|⟨STRIKE⟩|⟨\/STRIKE⟩|⟨MATH⟩|⟨\/MATH⟩|⟨HEADING⟩|⟨\/HEADING⟩)/);
     
     let inBold = false;
     let inItalic = false;
     let inCode = false;
     let inStrike = false;
+    let inMath = false;
     let inHeading = false;
 
     segments.forEach((segment, idx) => {
@@ -174,6 +178,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
       if (segment === '⟨/CODE⟩') { inCode = false; return; }
       if (segment === '⟨STRIKE⟩') { inStrike = true; return; }
       if (segment === '⟨/STRIKE⟩') { inStrike = false; return; }
+      if (segment === '⟨MATH⟩') { inMath = true; return; }
+      if (segment === '⟨/MATH⟩') { inMath = false; return; }
       if (segment === '⟨HEADING⟩') { inHeading = true; return; }
       if (segment === '⟨/HEADING⟩') { inHeading = false; return; }
 
@@ -187,6 +193,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         parts.push(<code key={idx} className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">{segment}</code>);
       } else if (inStrike) {
         parts.push(<del key={idx} className="line-through opacity-70">{segment}</del>);
+      } else if (inMath) {
+        parts.push(<strong key={idx} className="font-semibold text-foreground font-mono">{segment}</strong>);
       } else if (inHeading) {
         parts.push(<strong key={idx} className="font-semibold text-foreground">{segment}</strong>);
       } else {
