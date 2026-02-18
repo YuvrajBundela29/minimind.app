@@ -43,26 +43,30 @@ const languageVoiceCodes: Record<LanguageKey, string[]> = {
   'sa-roman': ['en-IN', 'hi-IN'],
 };
 
-// Voice quality preferences - prefer these voice names for natural sound
+// Voice quality preferences - prefer Google/Microsoft premium voices for natural sound
 const preferredVoiceNames: Partial<Record<string, string[]>> = {
-  'en-US': ['Samantha', 'Alex', 'Allison', 'Ava', 'Susan', 'Zira', 'David', 'Mark', 'Google US English'],
-  'en-GB': ['Daniel', 'Kate', 'Serena', 'Google UK English Female', 'Google UK English Male'],
-  'en-AU': ['Karen', 'Lee'],
-  'en-IN': ['Veena', 'Rishi', 'Google हिंदी'],
-  'hi-IN': ['Lekha', 'Google हिंदी', 'Microsoft Hemant', 'Microsoft Kalpana'],
-  'bn-IN': ['Google বাংলা', 'Microsoft Tanishaa'],
-  'ta-IN': ['Google தமிழ்', 'Microsoft Valluvar'],
-  'te-IN': ['Google తెలుగు', 'Microsoft Chitra'],
-  'mr-IN': ['Google मराठी'],
-  'gu-IN': ['Google ગુજરાતી'],
-  'kn-IN': ['Google ಕನ್ನಡ'],
-  'ml-IN': ['Google മലയാളം'],
+  'en-US': ['Google US English', 'Microsoft Aria', 'Microsoft Jenny', 'Samantha', 'Ava', 'Allison', 'Alex', 'Zira', 'David'],
+  'en-GB': ['Google UK English Female', 'Google UK English Male', 'Microsoft Sonia', 'Daniel', 'Kate', 'Serena'],
+  'en-AU': ['Karen', 'Lee', 'Microsoft Natasha'],
+  'en-IN': ['Google हिंदी', 'Microsoft Neerja', 'Veena', 'Rishi'],
+  'hi-IN': ['Google हिंदी', 'Microsoft Swara', 'Microsoft Kalpana', 'Microsoft Hemant', 'Lekha'],
+  'bn-IN': ['Google বাংলা', 'Microsoft Tanishaa', 'Microsoft Bashkar'],
+  'bn-BD': ['Google বাংলা', 'Microsoft Nabanita'],
+  'ta-IN': ['Google தமிழ்', 'Microsoft Pallavi', 'Microsoft Valluvar'],
+  'te-IN': ['Google తెలుగు', 'Microsoft Shruti', 'Microsoft Chitra', 'Microsoft Mohan'],
+  'mr-IN': ['Google मराठी', 'Microsoft Aarohi'],
+  'gu-IN': ['Google ગુજરાતી', 'Microsoft Dhwani', 'Microsoft Niranjan'],
+  'kn-IN': ['Google ಕನ್ನಡ', 'Microsoft Sapna', 'Microsoft Gagan'],
+  'ml-IN': ['Google മലയാളം', 'Microsoft Sobhana', 'Microsoft Midhun'],
   'pa-IN': ['Google ਪੰਜਾਬੀ'],
-  'ur-PK': ['Google اردو'],
-  'es-ES': ['Monica', 'Jorge', 'Google español'],
-  'es-MX': ['Paulina', 'Juan', 'Google español de Estados Unidos'],
-  'fr-FR': ['Thomas', 'Amelie', 'Google français'],
-  'ne-NP': ['Google नेपाली'],
+  'or-IN': ['Microsoft Subhasini'],
+  'ur-PK': ['Google اردو', 'Microsoft Asad', 'Microsoft Uzma'],
+  'ur-IN': ['Google اردو', 'Microsoft Salman', 'Microsoft Gul'],
+  'ne-NP': ['Google नेपाली', 'Microsoft Hemkala', 'Microsoft Sagar'],
+  'es-ES': ['Google español', 'Microsoft Elvira', 'Monica', 'Jorge'],
+  'es-MX': ['Google español de Estados Unidos', 'Microsoft Dalia', 'Paulina', 'Juan'],
+  'fr-FR': ['Google français', 'Microsoft Denise', 'Thomas', 'Amelie'],
+  'sa-IN': ['Google हिंदी'],
 };
 
 interface VoiceSelection {
@@ -122,14 +126,13 @@ class SpeechService {
 
     const langCodes = languageVoiceCodes[language] || ['en-US'];
     
-    // If no voices available, return null voice with language
     if (this.voices.length === 0) {
       return { voice: null, lang: langCodes[0] };
     }
     
     // Try each language code in order of preference
     for (const langCode of langCodes) {
-      // First, try to find preferred voices
+      // First, try to find preferred premium voices (Google/Microsoft tend to be best)
       const preferredNames = preferredVoiceNames[langCode] || [];
       for (const preferredName of preferredNames) {
         const voice = this.voices.find(
@@ -141,13 +144,29 @@ class SpeechService {
         }
       }
 
+      // Prefer Google voices (they're generally the most natural)
+      const googleVoice = this.voices.find(
+        v => v.name.toLowerCase().includes('google') && v.lang.startsWith(langCode.split('-')[0])
+      );
+      if (googleVoice) {
+        return { voice: googleVoice, lang: googleVoice.lang };
+      }
+
+      // Then prefer Microsoft voices
+      const msVoice = this.voices.find(
+        v => v.name.toLowerCase().includes('microsoft') && v.lang.startsWith(langCode.split('-')[0])
+      );
+      if (msVoice) {
+        return { voice: msVoice, lang: msVoice.lang };
+      }
+
       // Then try exact lang match
       const exactMatch = this.voices.find(v => v.lang === langCode);
       if (exactMatch) {
         return { voice: exactMatch, lang: exactMatch.lang };
       }
 
-      // Then try language prefix match (e.g., 'hi' for 'hi-IN')
+      // Then try language prefix match
       const langPrefix = langCode.split('-')[0];
       const prefixMatch = this.voices.find(v => v.lang.startsWith(langPrefix));
       if (prefixMatch) {
@@ -155,10 +174,12 @@ class SpeechService {
       }
     }
 
-    // Fallback to default English voice
-    const defaultVoice = this.voices.find(v => v.lang.startsWith('en')) || this.voices[0];
+    // Fallback to best English voice
+    const googleEn = this.voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en'));
+    const defaultVoice = googleEn || this.voices.find(v => v.lang.startsWith('en')) || this.voices[0];
     return { voice: defaultVoice || null, lang: defaultVoice?.lang || 'en-US' };
   }
+
 
   getAvailableVoices(): SpeechSynthesisVoice[] {
     return this.voices;
@@ -210,10 +231,17 @@ class SpeechService {
 
     const { voice, lang } = await this.getVoiceForLanguage(language);
     
-    // Clean up text - remove markdown and special characters
+    // Clean up text - remove markdown, special characters, and math symbols for natural speech
     const cleanText = text
-      .replace(/[#*_`~]/g, '')
+      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+      .replace(/\$\$[\s\S]*?\$\$/g, '') // Remove block math
+      .replace(/\$[^$]*?\$/g, '') // Remove inline math
+      .replace(/[#*_`~^]/g, '')
+      .replace(/\\\w+/g, '') // Remove LaTeX commands
+      .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱᵃᵇᶜᵈᵉᶠᵍʰᵏˡᵐᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/g, '') // Remove superscripts
+      .replace(/[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ]/g, '') // Remove subscripts
       .replace(/\n+/g, '. ')
+      .replace(/\.\s*\./g, '.') // Clean double periods
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -229,8 +257,10 @@ class SpeechService {
       console.log(`Using voice: ${voice.name} (${voice.lang})`);
     }
     utterance.lang = lang;
-    utterance.rate = options?.rate ?? 0.9;
-    utterance.pitch = options?.pitch ?? 1;
+    // Slightly slower rate for natural cadence, especially for Indian languages
+    const isIndicLanguage = ['hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'or', 'pa', 'ur', 'ne', 'sa'].includes(language.split('-')[0]);
+    utterance.rate = options?.rate ?? (isIndicLanguage ? 0.85 : 0.92);
+    utterance.pitch = options?.pitch ?? 1.0;
     utterance.volume = options?.volume ?? 1;
 
     // Set up event handlers
