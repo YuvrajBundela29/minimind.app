@@ -1,52 +1,42 @@
 
 
-# Add "New Chat" Button for Fresh Home Screen
+# Fix "Free" Labels and Enable Credit Deduction
 
-## Overview
-Add a "New Chat" button (similar to ChatGPT) that clears the current conversation and returns to the fresh home screen with the hero empty state and suggested prompts. The button will appear in two places for easy access.
+## Problem
+Two issues:
+1. Every mode card and feature shows "Free" instead of credit costs
+2. Credits are never deducted because early access mode bypasses all credit checks
 
-## What Changes
+## Root Cause
+In `src/contexts/EarlyAccessContext.tsx`, `isEarlyAccess` is set to `true` and `unlimitedCredits` is `true`. Every component checks these flags and either shows "Free" or skips credit deduction entirely.
 
-### 1. `src/components/MobileHeader.tsx` -- Add "New Chat" button
-- Accept a new `onNewChat` prop and a `hasActiveChat` boolean prop
-- When `hasActiveChat` is true, show a "+" (PenSquare/SquarePen) icon button next to the menu button
-- Tapping it triggers `onNewChat` which resets everything
+## Changes
 
-### 2. `src/components/SideMenu.tsx` -- Add "New Chat" at top
-- Accept a new `onNewChat` prop
-- Add a prominent "New Chat" button at the very top of the side menu (above the Learn section), styled with a primary outline and a PenSquare icon
-- Clicking it calls `onNewChat` and closes the menu
+### 1. `src/contexts/EarlyAccessContext.tsx` -- Disable early access mode
+- Set `isEarlyAccess: false` and `unlimitedCredits: false` so the credit system is active
 
-### 3. `src/pages/Index.tsx` -- Wire up the reset logic
-- Extract the existing reset logic (from the back-button handler at lines 266-276) into a reusable `handleNewChat` callback:
-  - Clear answers to defaults
-  - Clear currentQuestion
-  - Set hasAskedQuestion to false
-  - Reset chatHistories
-  - Clear question input
-  - Remove session from localStorage
-  - Cancel any pending API requests
-  - Show a subtle toast: "Starting fresh!"
-- Pass `handleNewChat` to both `MobileHeader` and `SideMenu`
-- Pass `hasAskedQuestion` to `MobileHeader` so the button only shows when there's an active chat
+### 2. `src/components/ModeCard.tsx` -- Show credit cost instead of "Free"
+- Line 118: Change `{isEarlyAccess ? 'Free' : creditCost}` to always show the credit cost with a label like `1 credit`
 
-## Visual Placement
+### 3. `src/components/TrustFooter.tsx` -- Show credit cost instead of "Free (Early Access)"
+- Lines 45-47: Remove the early access conditional and always show the actual credit cost
 
-```text
-Header: [Menu] [MiniMind Logo] [+New] [Profile]
-                                  ^-- only visible when chat is active
+### 4. `src/components/pages/EkaksharPage.tsx` -- Remove early access bypass
+- Remove `if (!isEarlyAccess && ...)` guards so credits are always checked and deducted
+- Remove the "Free" badge that shows during early access
 
-Side Menu:
-  [MiniMind Logo]           [X]
-  [+ New Chat button - full width, outlined]
-  --------------------------------
-  LEARN
-    Ask AI
-    Study Plans
-    ...
-```
+### 5. `src/components/pages/ExplainBackPage.tsx` -- Remove "Free" badge
+- Remove the early access "Free" badge
 
-## Files to Modify
-1. `src/components/MobileHeader.tsx` -- Add new chat icon button
-2. `src/components/SideMenu.tsx` -- Add new chat button at top
-3. `src/pages/Index.tsx` -- Create `handleNewChat` callback and pass as prop
+### 6. `src/components/pages/LearningPathPage.tsx` -- Remove early access bypass
+- Remove `if (!isEarlyAccess && ...)` guards from `generatePath` and `loadTopicExplanation`
+- Remove the early access conditional from the disabled button check
+
+### Files to modify
+1. `src/contexts/EarlyAccessContext.tsx`
+2. `src/components/ModeCard.tsx`
+3. `src/components/TrustFooter.tsx`
+4. `src/components/pages/EkaksharPage.tsx`
+5. `src/components/pages/ExplainBackPage.tsx`
+6. `src/components/pages/LearningPathPage.tsx`
+
