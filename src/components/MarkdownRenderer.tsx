@@ -9,129 +9,152 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
   if (!content) return null;
 
   const parseMarkdown = (text: string): React.ReactNode[] => {
-    // Split into lines for block-level processing
-    const lines = text.split('\n');
     const elements: React.ReactNode[] = [];
-    let listItems: string[] = [];
-    let listType: 'ul' | 'ol' | null = null;
 
-    const flushList = () => {
-      if (listItems.length > 0 && listType) {
-        const ListTag = listType;
-        elements.push(
-          <ListTag key={`list-${elements.length}`} className={listType === 'ul' ? 'list-disc pl-5 my-2 space-y-1' : 'list-decimal pl-5 my-2 space-y-1'}>
-            {listItems.map((item, i) => (
-              <li key={i} className="text-muted-foreground">{parseInline(item)}</li>
-            ))}
-          </ListTag>
-        );
-        listItems = [];
-        listType = null;
+    // First, split by code blocks (``` ... ```)
+    const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+    const segments: Array<{ type: 'text' | 'code'; content: string; lang?: string }> = [];
+
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
       }
-    };
+      segments.push({ type: 'code', content: match[2], lang: match[1] || undefined });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      segments.push({ type: 'text', content: text.slice(lastIndex) });
+    }
 
-    lines.forEach((line, index) => {
-      const trimmedLine = line.trim();
-
-      // Empty line
-      if (!trimmedLine) {
-        flushList();
-        return;
-      }
-
-      // Headings with ^^ or # syntax
-      if (trimmedLine.startsWith('^^') && trimmedLine.endsWith('^^')) {
-        flushList();
-        const headingText = trimmedLine.slice(2, -2);
+    segments.forEach((segment, segIdx) => {
+      if (segment.type === 'code') {
         elements.push(
-          <h3 key={index} className="text-lg font-heading font-semibold text-foreground mt-4 mb-2">
-            {parseInline(headingText)}
-          </h3>
+          <pre key={`code-${segIdx}`} className="my-3 rounded-lg bg-muted/80 border border-border overflow-x-auto">
+            <code className="block p-3 text-xs font-mono text-foreground whitespace-pre leading-relaxed">
+              {segment.content.replace(/\n$/, '')}
+            </code>
+          </pre>
         );
         return;
       }
 
-      // H1
-      if (trimmedLine.startsWith('# ')) {
-        flushList();
-        elements.push(
-          <h2 key={index} className="text-xl font-heading font-bold text-foreground mt-4 mb-2">
-            {parseInline(trimmedLine.slice(2))}
-          </h2>
-        );
-        return;
-      }
+      // Process text segment line by line
+      const lines = segment.content.split('\n');
+      let listItems: string[] = [];
+      let listType: 'ul' | 'ol' | null = null;
 
-      // H2
-      if (trimmedLine.startsWith('## ')) {
-        flushList();
-        elements.push(
-          <h3 key={index} className="text-lg font-heading font-semibold text-foreground mt-3 mb-2">
-            {parseInline(trimmedLine.slice(3))}
-          </h3>
-        );
-        return;
-      }
-
-      // H3
-      if (trimmedLine.startsWith('### ')) {
-        flushList();
-        elements.push(
-          <h4 key={index} className="text-base font-heading font-semibold text-foreground mt-3 mb-1">
-            {parseInline(trimmedLine.slice(4))}
-          </h4>
-        );
-        return;
-      }
-
-      // H4
-      if (trimmedLine.startsWith('#### ')) {
-        flushList();
-        elements.push(
-          <h5 key={index} className="text-sm font-heading font-semibold text-foreground mt-2 mb-1">
-            {parseInline(trimmedLine.slice(5))}
-          </h5>
-        );
-        return;
-      }
-
-      // Horizontal rule
-      if (/^[-*_]{3,}$/.test(trimmedLine)) {
-        flushList();
-        elements.push(<hr key={index} className="my-4 border-border" />);
-        return;
-      }
-
-      // Unordered list items
-      if (/^[-*•]\s/.test(trimmedLine)) {
-        if (listType !== 'ul') {
-          flushList();
-          listType = 'ul';
+      const flushList = () => {
+        if (listItems.length > 0 && listType) {
+          const ListTag = listType;
+          elements.push(
+            <ListTag key={`list-${elements.length}`} className={listType === 'ul' ? 'list-disc pl-5 my-2 space-y-1' : 'list-decimal pl-5 my-2 space-y-1'}>
+              {listItems.map((item, i) => (
+                <li key={i} className="text-muted-foreground">{parseInline(item)}</li>
+              ))}
+            </ListTag>
+          );
+          listItems = [];
+          listType = null;
         }
-        listItems.push(trimmedLine.replace(/^[-*•]\s/, ''));
-        return;
-      }
+      };
 
-      // Ordered list items
-      if (/^\d+[.)]\s/.test(trimmedLine)) {
-        if (listType !== 'ol') {
+      lines.forEach((line, index) => {
+        const trimmedLine = line.trim();
+
+        if (!trimmedLine) {
           flushList();
-          listType = 'ol';
+          return;
         }
-        listItems.push(trimmedLine.replace(/^\d+[.)]\s/, ''));
-        return;
-      }
 
-      // Regular paragraph
+        // Headings with ^^ or # syntax
+        if (trimmedLine.startsWith('^^') && trimmedLine.endsWith('^^')) {
+          flushList();
+          const headingText = trimmedLine.slice(2, -2);
+          elements.push(
+            <h3 key={`${segIdx}-${index}`} className="text-lg font-heading font-semibold text-foreground mt-4 mb-2">
+              {parseInline(headingText)}
+            </h3>
+          );
+          return;
+        }
+
+        if (trimmedLine.startsWith('# ')) {
+          flushList();
+          elements.push(
+            <h2 key={`${segIdx}-${index}`} className="text-xl font-heading font-bold text-foreground mt-4 mb-2">
+              {parseInline(trimmedLine.slice(2))}
+            </h2>
+          );
+          return;
+        }
+
+        if (trimmedLine.startsWith('## ')) {
+          flushList();
+          elements.push(
+            <h3 key={`${segIdx}-${index}`} className="text-lg font-heading font-semibold text-foreground mt-3 mb-2">
+              {parseInline(trimmedLine.slice(3))}
+            </h3>
+          );
+          return;
+        }
+
+        if (trimmedLine.startsWith('### ')) {
+          flushList();
+          elements.push(
+            <h4 key={`${segIdx}-${index}`} className="text-base font-heading font-semibold text-foreground mt-3 mb-1">
+              {parseInline(trimmedLine.slice(4))}
+            </h4>
+          );
+          return;
+        }
+
+        if (trimmedLine.startsWith('#### ')) {
+          flushList();
+          elements.push(
+            <h5 key={`${segIdx}-${index}`} className="text-sm font-heading font-semibold text-foreground mt-2 mb-1">
+              {parseInline(trimmedLine.slice(5))}
+            </h5>
+          );
+          return;
+        }
+
+        if (/^[-*_]{3,}$/.test(trimmedLine)) {
+          flushList();
+          elements.push(<hr key={`${segIdx}-${index}`} className="my-4 border-border" />);
+          return;
+        }
+
+        if (/^[-*•]\s/.test(trimmedLine)) {
+          if (listType !== 'ul') {
+            flushList();
+            listType = 'ul';
+          }
+          listItems.push(trimmedLine.replace(/^[-*•]\s/, ''));
+          return;
+        }
+
+        if (/^\d+[.)]\s/.test(trimmedLine)) {
+          if (listType !== 'ol') {
+            flushList();
+            listType = 'ol';
+          }
+          listItems.push(trimmedLine.replace(/^\d+[.)]\s/, ''));
+          return;
+        }
+
+        flushList();
+        elements.push(
+          <p key={`${segIdx}-${index}`} className="text-muted-foreground leading-relaxed mb-2">
+            {parseInline(trimmedLine)}
+          </p>
+        );
+      });
+
       flushList();
-      elements.push(
-        <p key={index} className="text-muted-foreground leading-relaxed mb-2">
-          {parseInline(trimmedLine)}
-        </p>
-      );
     });
 
-    flushList();
     return elements;
   };
 
