@@ -121,63 +121,48 @@ class SpeechService {
     return this.loadPromise;
   }
 
-  async getVoiceForLanguage(language: LanguageKey): Promise<VoiceSelection> {
-    await this.loadVoices();
-
-    const langCodes = languageVoiceCodes[language] || ['en-US'];
-    
+  private findBestVoice(langCodes: string[]): VoiceSelection {
     if (this.voices.length === 0) {
       return { voice: null, lang: langCodes[0] };
     }
-    
-    // Try each language code in order of preference
+
     for (const langCode of langCodes) {
-      // First, try to find preferred premium voices (Google/Microsoft tend to be best)
       const preferredNames = preferredVoiceNames[langCode] || [];
       for (const preferredName of preferredNames) {
         const voice = this.voices.find(
           v => v.name.toLowerCase().includes(preferredName.toLowerCase()) && 
                v.lang.startsWith(langCode.split('-')[0])
         );
-        if (voice) {
-          return { voice, lang: voice.lang };
-        }
+        if (voice) return { voice, lang: voice.lang };
       }
 
-      // Prefer Google voices (they're generally the most natural)
       const googleVoice = this.voices.find(
         v => v.name.toLowerCase().includes('google') && v.lang.startsWith(langCode.split('-')[0])
       );
-      if (googleVoice) {
-        return { voice: googleVoice, lang: googleVoice.lang };
-      }
+      if (googleVoice) return { voice: googleVoice, lang: googleVoice.lang };
 
-      // Then prefer Microsoft voices
       const msVoice = this.voices.find(
         v => v.name.toLowerCase().includes('microsoft') && v.lang.startsWith(langCode.split('-')[0])
       );
-      if (msVoice) {
-        return { voice: msVoice, lang: msVoice.lang };
-      }
+      if (msVoice) return { voice: msVoice, lang: msVoice.lang };
 
-      // Then try exact lang match
       const exactMatch = this.voices.find(v => v.lang === langCode);
-      if (exactMatch) {
-        return { voice: exactMatch, lang: exactMatch.lang };
-      }
+      if (exactMatch) return { voice: exactMatch, lang: exactMatch.lang };
 
-      // Then try language prefix match
       const langPrefix = langCode.split('-')[0];
       const prefixMatch = this.voices.find(v => v.lang.startsWith(langPrefix));
-      if (prefixMatch) {
-        return { voice: prefixMatch, lang: prefixMatch.lang };
-      }
+      if (prefixMatch) return { voice: prefixMatch, lang: prefixMatch.lang };
     }
 
-    // Fallback to best English voice
     const googleEn = this.voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en'));
     const defaultVoice = googleEn || this.voices.find(v => v.lang.startsWith('en')) || this.voices[0];
     return { voice: defaultVoice || null, lang: defaultVoice?.lang || 'en-US' };
+  }
+
+  async getVoiceForLanguage(language: LanguageKey): Promise<VoiceSelection> {
+    await this.loadVoices();
+    const langCodes = languageVoiceCodes[language] || ['en-US'];
+    return this.findBestVoice(langCodes);
   }
 
 
@@ -226,10 +211,16 @@ class SpeechService {
       console.warn('Error cancelling speech:', e);
     }
 
-    // Wait a brief moment after cancel before starting new speech
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Get voice synchronously to preserve user gesture context (required by Chrome)
+    const langCodes = languageVoiceCodes[language] || ['en-US'];
+    let voice: SpeechSynthesisVoice | null = null;
+    let lang = langCodes[0];
 
-    const { voice, lang } = await this.getVoiceForLanguage(language);
+    if (this.voices.length > 0) {
+      const selection = this.findBestVoice(langCodes);
+      voice = selection.voice;
+      lang = selection.lang;
+    }
     
     // Clean up text - remove markdown, special characters, and math symbols for natural speech
     const cleanText = text
