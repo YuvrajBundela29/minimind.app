@@ -84,6 +84,24 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         return;
       }
 
+      // H4
+      if (trimmedLine.startsWith('#### ')) {
+        flushList();
+        elements.push(
+          <h5 key={index} className="text-sm font-heading font-semibold text-foreground mt-2 mb-1">
+            {parseInline(trimmedLine.slice(5))}
+          </h5>
+        );
+        return;
+      }
+
+      // Horizontal rule
+      if (/^[-*_]{3,}$/.test(trimmedLine)) {
+        flushList();
+        elements.push(<hr key={index} className="my-4 border-border" />);
+        return;
+      }
+
       // Unordered list items
       if (/^[-*•]\s/.test(trimmedLine)) {
         if (listType !== 'ul') {
