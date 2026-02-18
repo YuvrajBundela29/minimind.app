@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Menu, User, Crown, Sparkles } from 'lucide-react';
+import { Menu, User, Crown, Sparkles, SquarePen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +9,11 @@ interface MobileHeaderProps {
   onMenuClick: () => void;
   onProfileClick: () => void;
   currentLens?: PurposeLensKey;
+  onNewChat?: () => void;
+  hasActiveChat?: boolean;
 }
 
-const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick, currentLens = 'general' }) => {
+const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick, currentLens = 'general', onNewChat, hasActiveChat = false }) => {
   const { tier } = useSubscription();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const lensData = purposeLenses[currentLens];
@@ -93,6 +95,19 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick
       </div>
 
       <div className="flex items-center gap-2">
+        {/* New Chat Button - only when chat is active */}
+        {hasActiveChat && onNewChat && (
+          <motion.button
+            className="icon-btn icon-btn-ghost"
+            onClick={onNewChat}
+            whileTap={{ scale: 0.95 }}
+            aria-label="New chat"
+            title="Start new chat"
+          >
+            <SquarePen className="w-5 h-5 text-primary" />
+          </motion.button>
+        )}
+
         {/* Purpose Lens Badge */}
         {currentLens !== 'general' && (
           <motion.span

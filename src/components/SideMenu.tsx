@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Home, BarChart3, Zap, History, Settings, Sun, Moon, HelpCircle, User, BookOpen, Crown, FileSearch, Sparkles, MessageCircle, LayoutDashboard, MessageSquareHeart, Target } from 'lucide-react';
+import { X, Home, BarChart3, Zap, History, Settings, Sun, Moon, HelpCircle, User, BookOpen, Crown, FileSearch, Sparkles, MessageCircle, LayoutDashboard, MessageSquareHeart, Target, SquarePen } from 'lucide-react';
 import { navigationItems, NavigationId } from '@/config/minimind';
 import { useSubscription, FREE_DAILY_LIMIT } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,6 +29,7 @@ interface SideMenuProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onShowGuide?: () => void;
+  onNewChat?: () => void;
 }
 
 const SideMenu: React.FC<SideMenuProps> = ({
@@ -39,6 +40,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
   theme,
   onToggleTheme,
   onShowGuide,
+  onNewChat,
 }) => {
   const { tier, subscription, getRemainingQuestions } = useSubscription();
   const remaining = getRemainingQuestions();
@@ -105,6 +107,23 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
             </div>
             
+            {/* New Chat Button */}
+            {onNewChat && (
+              <div className="p-4 pb-2">
+                <motion.button
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors"
+                  onClick={() => {
+                    onNewChat();
+                    onClose();
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <SquarePen className="w-5 h-5" />
+                  <span>New Chat</span>
+                </motion.button>
+              </div>
+            )}
+
             <nav className="p-4">
               {/* Learn Section */}
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-4">Learn</p>

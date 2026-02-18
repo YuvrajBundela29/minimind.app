@@ -635,6 +635,24 @@ const Index = () => {
     toast.success(`Switched to ${lens === 'custom' ? 'Custom' : lens.charAt(0).toUpperCase() + lens.slice(1)} mode!`);
   }, []);
 
+  // New Chat handler - reset everything to fresh home screen
+  const handleNewChat = useCallback(() => {
+    abortControllerRef.current?.abort();
+    speechService.stop();
+    setIsSpeaking(false);
+    setCurrentSpeech(null);
+    setAnswers(defaultAnswers);
+    setCurrentQuestion('');
+    setHasAskedQuestion(false);
+    setChatHistories({ beginner: [], thinker: [], story: [], mastery: [] });
+    setChatInputs({ beginner: '', thinker: '', story: '', mastery: '' });
+    setLoadingModes({ beginner: false, thinker: false, story: false, mastery: false });
+    setQuestion('');
+    setCurrentPage('home');
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    toast.success('✨ Starting fresh!');
+  }, []);
+
   const isAnyLoading = Object.values(loadingModes).some(l => l);
 
   // Staggered prompt click handler
@@ -730,8 +748,8 @@ const Index = () => {
 
   return (
     <div className="app-container">
-      <MobileHeader onMenuClick={() => setIsMenuOpen(true)} onProfileClick={() => user ? setCurrentPage('profile') : setCurrentPage('auth')} currentLens={purposeLens} />
-      <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} currentPage={currentPage as NavigationId} onNavigate={setCurrentPage} theme={theme} onToggleTheme={toggleTheme} onShowGuide={() => setShowOnboarding(true)} />
+      <MobileHeader onMenuClick={() => setIsMenuOpen(true)} onProfileClick={() => user ? setCurrentPage('profile') : setCurrentPage('auth')} currentLens={purposeLens} onNewChat={handleNewChat} hasActiveChat={hasAskedQuestion} />
+      <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} currentPage={currentPage as NavigationId} onNavigate={setCurrentPage} theme={theme} onToggleTheme={toggleTheme} onShowGuide={() => setShowOnboarding(true)} onNewChat={handleNewChat} />
       
       <main className="page-content px-4 custom-scrollbar">
         <AnimatePresence mode="wait">
