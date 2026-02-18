@@ -135,26 +135,102 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
     return elements;
   };
 
+  // Convert LaTeX-like commands to readable symbols
+  const formatMathExpression = (expr: string): string => {
+    return expr
+      .replace(/\\angle\s*/g, '∠')
+      .replace(/\\cos\s*/g, 'cos ')
+      .replace(/\\sin\s*/g, 'sin ')
+      .replace(/\\tan\s*/g, 'tan ')
+      .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+      .replace(/\\sqrt\s*/g, '√')
+      .replace(/\\pi/g, 'π')
+      .replace(/\\theta/g, 'θ')
+      .replace(/\\alpha/g, 'α')
+      .replace(/\\beta/g, 'β')
+      .replace(/\\gamma/g, 'γ')
+      .replace(/\\delta/g, 'δ')
+      .replace(/\\infty/g, '∞')
+      .replace(/\\pm/g, '±')
+      .replace(/\\times/g, '×')
+      .replace(/\\div/g, '÷')
+      .replace(/\\neq/g, '≠')
+      .replace(/\\leq/g, '≤')
+      .replace(/\\geq/g, '≥')
+      .replace(/\\approx/g, '≈')
+      .replace(/\\circ/g, '°')
+      .replace(/\\degree/g, '°')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+      .replace(/\^(\{[^}]+\})/g, (_, exp) => {
+        const inner = exp.slice(1, -1);
+        return toSuperscript(inner);
+      })
+      .replace(/\^(\d+)/g, (_, exp) => toSuperscript(exp))
+      .replace(/\^([a-zA-Z])/g, (_, exp) => toSuperscript(exp))
+      .replace(/_(\{[^}]+\})/g, (_, sub) => {
+        const inner = sub.slice(1, -1);
+        return toSubscript(inner);
+      })
+      .replace(/_(\d+)/g, (_, sub) => toSubscript(sub))
+      .replace(/_([a-zA-Z])/g, (_, sub) => toSubscript(sub))
+      .replace(/\\\\/g, '')
+      .replace(/\\,/g, ' ')
+      .replace(/\\;/g, ' ')
+      .replace(/\\quad/g, '  ')
+      .replace(/\\text\{([^}]+)\}/g, '$1')
+      .replace(/\\left/g, '')
+      .replace(/\\right/g, '')
+      .trim();
+  };
+
+  const toSuperscript = (str: string): string => {
+    const superMap: Record<string, string> = {
+      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+      '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+      'n': 'ⁿ', 'i': 'ⁱ', '+': '⁺', '-': '⁻', '=': '⁼',
+      '(': '⁽', ')': '⁾', 'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ',
+      'd': 'ᵈ', 'e': 'ᵉ', 'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ',
+      'k': 'ᵏ', 'l': 'ˡ', 'm': 'ᵐ', 'o': 'ᵒ', 'p': 'ᵖ',
+      'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ', 'u': 'ᵘ', 'v': 'ᵛ',
+      'w': 'ʷ', 'x': 'ˣ', 'y': 'ʸ', 'z': 'ᶻ',
+    };
+    return str.split('').map(c => superMap[c] || c).join('');
+  };
+
+  const toSubscript = (str: string): string => {
+    const subMap: Record<string, string> = {
+      '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+      '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+      'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ',
+      'k': 'ₖ', 'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ',
+      'p': 'ₚ', 'r': 'ᵣ', 's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ',
+      'v': 'ᵥ', 'x': 'ₓ', '+': '₊', '-': '₋', '=': '₌',
+      '(': '₍', ')': '₎',
+    };
+    return str.split('').map(c => subMap[c] || c).join('');
+  };
+
+  // Also format inline math-like patterns outside of $...$ (e.g. c^2, a^2)
+  const formatInlineMathPatterns = (text: string): string => {
+    return text
+      .replace(/(\b[a-zA-Z])(\^)(\d+)/g, (_, letter, _caret, exp) => letter + toSuperscript(exp))
+      .replace(/(\b[a-zA-Z])(\^)\{([^}]+)\}/g, (_, letter, _caret, exp) => letter + toSuperscript(exp))
+      .replace(/\\angle\s*/g, '∠')
+      .replace(/\\cos\s*/g, 'cos ')
+      .replace(/\\sin\s*/g, 'sin ')
+      .replace(/\\tan\s*/g, 'tan ')
+      .replace(/\\circ/g, '°')
+      .replace(/\\pi/g, 'π')
+      .replace(/\\theta/g, 'θ')
+      .replace(/\\times/g, '×');
+  };
+
   const parseInline = (text: string): React.ReactNode => {
     if (!text) return null;
 
-    // Process inline formatting
     const parts: React.ReactNode[] = [];
     let remaining = text;
     let keyCounter = 0;
-
-    const patterns = [
-      // Bold with ** or __
-      { regex: /\*\*(.+?)\*\*/g, render: (match: string) => <strong key={keyCounter++} className="font-semibold text-foreground">{match}</strong> },
-      { regex: /__(.+?)__/g, render: (match: string) => <strong key={keyCounter++} className="font-semibold text-foreground">{match}</strong> },
-      // Italic with * or _
-      { regex: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, render: (match: string) => <em key={keyCounter++} className="italic">{match}</em> },
-      { regex: /(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, render: (match: string) => <em key={keyCounter++} className="italic">{match}</em> },
-      // Code with `
-      { regex: /`([^`]+)`/g, render: (match: string) => <code key={keyCounter++} className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">{match}</code> },
-      // Strikethrough with ~~
-      { regex: /~~(.+?)~~/g, render: (match: string) => <del key={keyCounter++} className="line-through opacity-70">{match}</del> },
-    ];
 
     // Simple approach: process text step by step
     let processedText = remaining;
@@ -172,10 +248,24 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
     // Strikethrough ~~text~~
     processedText = processedText.replace(/~~(.+?)~~/g, '⟨STRIKE⟩$1⟨/STRIKE⟩');
     // Math expressions $..$ and $$..$$
-    processedText = processedText.replace(/\$\$(.+?)\$\$/g, '⟨MATH⟩$1⟨/MATH⟩');
-    processedText = processedText.replace(/\$([^$]+?)\$/g, '⟨MATH⟩$1⟨/MATH⟩');
+    processedText = processedText.replace(/\$\$(.+?)\$\$/g, (_, expr) => '⟨MATH⟩' + formatMathExpression(expr) + '⟨/MATH⟩');
+    processedText = processedText.replace(/\$([^$]+?)\$/g, (_, expr) => '⟨MATH⟩' + formatMathExpression(expr) + '⟨/MATH⟩');
     // Clean up ^^ markers that might remain
     processedText = processedText.replace(/\^\^(.+?)\^\^/g, '⟨HEADING⟩$1⟨/HEADING⟩');
+
+    // Format remaining inline math patterns (like c^2 outside of $...$)
+    // Only apply to segments NOT inside markers
+    const markerPattern = /⟨[A-Z]+⟩[\s\S]*?⟨\/[A-Z]+⟩/g;
+    let lastIndex = 0;
+    let formattedText = '';
+    let match;
+    while ((match = markerPattern.exec(processedText)) !== null) {
+      formattedText += formatInlineMathPatterns(processedText.slice(lastIndex, match.index));
+      formattedText += match[0];
+      lastIndex = match.index + match[0].length;
+    }
+    formattedText += formatInlineMathPatterns(processedText.slice(lastIndex));
+    processedText = formattedText;
 
     // Now convert markers to React elements
     const segments = processedText.split(/(⟨BOLD⟩|⟨\/BOLD⟩|⟨ITALIC⟩|⟨\/ITALIC⟩|⟨CODE⟩|⟨\/CODE⟩|⟨STRIKE⟩|⟨\/STRIKE⟩|⟨MATH⟩|⟨\/MATH⟩|⟨HEADING⟩|⟨\/HEADING⟩)/);
@@ -212,7 +302,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
       } else if (inStrike) {
         parts.push(<del key={idx} className="line-through opacity-70">{segment}</del>);
       } else if (inMath) {
-        parts.push(<strong key={idx} className="font-semibold text-foreground font-mono">{segment}</strong>);
+        parts.push(
+          <span key={idx} className="inline-flex items-center px-2 py-0.5 mx-0.5 rounded-md bg-primary/5 border border-primary/15 font-mono text-sm font-semibold text-foreground tracking-wide">
+            {segment}
+          </span>
+        );
       } else if (inHeading) {
         parts.push(<strong key={idx} className="font-semibold text-foreground">{segment}</strong>);
       } else {
