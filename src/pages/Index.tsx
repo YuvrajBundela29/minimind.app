@@ -517,9 +517,7 @@ const Index = () => {
           toast.error('Speech not available. Try a different browser.');
         },
       });
-      if (utterance) {
-        setCurrentSpeech(utterance);
-      }
+      setCurrentSpeech({} as any);
     } catch (error) {
       console.error('Speech error:', error);
       toast.error('Speech synthesis not available');
