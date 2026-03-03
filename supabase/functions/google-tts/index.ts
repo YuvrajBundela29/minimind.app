@@ -8,7 +8,7 @@ const corsHeaders = {
 // Map of language keys to Google Cloud TTS language codes and voice names
 const languageVoiceMap: Record<string, { languageCode: string; name: string; ssmlGender: string }> = {
   en: { languageCode: 'en-US', name: 'en-US-Neural2-J', ssmlGender: 'MALE' },
-  hi: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D', ssmlGender: 'FEMALE' },
+  hi: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },
   hinglish: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },
   bn: { languageCode: 'bn-IN', name: 'bn-IN-Neural2-A', ssmlGender: 'FEMALE' },
   te: { languageCode: 'te-IN', name: 'te-IN-Standard-A', ssmlGender: 'FEMALE' },
@@ -22,7 +22,7 @@ const languageVoiceMap: Record<string, { languageCode: string; name: string; ssm
   as: { languageCode: 'bn-IN', name: 'bn-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Bengali
   mai: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
   ur: { languageCode: 'ur-IN', name: 'ur-IN-Standard-A', ssmlGender: 'FEMALE' },  // Urdu - Standard
-  sa: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D', ssmlGender: 'FEMALE' },  // Fallback to Hindi
+  sa: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
   ne: { languageCode: 'ne-NP', name: 'ne-NP-Standard-A', ssmlGender: 'FEMALE' },  // Nepali - Standard
   sd: { languageCode: 'ur-IN', name: 'ur-IN-Standard-A', ssmlGender: 'FEMALE' },  // Fallback to Urdu
   ks: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
@@ -30,8 +30,8 @@ const languageVoiceMap: Record<string, { languageCode: string; name: string; ssm
   mni: { languageCode: 'bn-IN', name: 'bn-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Bengali
   doi: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
   sat: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
-  bho: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D', ssmlGender: 'FEMALE' },  // Fallback to Hindi
-  raj: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D', ssmlGender: 'FEMALE' },  // Fallback to Hindi
+  bho: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
+  raj: { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },  // Fallback to Hindi
   es: { languageCode: 'es-ES', name: 'es-ES-Neural2-A', ssmlGender: 'FEMALE' },
   fr: { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A', ssmlGender: 'FEMALE' },
   'hi-roman': { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },
@@ -44,7 +44,7 @@ const languageVoiceMap: Record<string, { languageCode: string; name: string; ssm
   'mr-roman': { languageCode: 'mr-IN', name: 'mr-IN-Standard-A', ssmlGender: 'FEMALE' },
   'pa-roman': { languageCode: 'pa-IN', name: 'pa-IN-Neural2-A', ssmlGender: 'FEMALE' },
   'ur-roman': { languageCode: 'ur-IN', name: 'ur-IN-Standard-A', ssmlGender: 'FEMALE' },
-  'sa-roman': { languageCode: 'hi-IN', name: 'hi-IN-Neural2-D', ssmlGender: 'FEMALE' },
+  'sa-roman': { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },
 };
 
 serve(async (req) => {
@@ -113,8 +113,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Google TTS API error:', errorData);
-      throw new Error(`Google TTS API error: ${response.status}`);
+      console.error('Google TTS API error:', response.status, errorData);
+      throw new Error(`Google TTS API error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
