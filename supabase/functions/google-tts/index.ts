@@ -47,6 +47,92 @@ const languageVoiceMap: Record<string, { languageCode: string; name: string; ssm
   'sa-roman': { languageCode: 'hi-IN', name: 'hi-IN-Neural2-A', ssmlGender: 'FEMALE' },
 };
 
+const encoder = new TextEncoder();
+const MAX_TTS_BYTES = 4800;
+
+const splitTextByByteLimit = (text: string, maxBytes = MAX_TTS_BYTES): string[] => {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+
+  if (encoder.encode(normalized).length <= maxBytes) {
+    return [normalized];
+  }
+
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  const flushCurrentChunk = () => {
+    if (currentChunk) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+  };
+
+  const pushSegmentWithinLimit = (segment: string) => {
+    const words = segment.split(/\s+/).filter(Boolean);
+    let localChunk = '';
+
+    for (const word of words) {
+      const candidate = localChunk ? `${localChunk} ${word}` : word;
+      if (encoder.encode(candidate).length <= maxBytes) {
+        localChunk = candidate;
+        continue;
+      }
+
+      if (localChunk) {
+        chunks.push(localChunk);
+        localChunk = '';
+      }
+
+      if (encoder.encode(word).length <= maxBytes) {
+        localChunk = word;
+        continue;
+      }
+
+      let partial = '';
+      for (const char of Array.from(word)) {
+        const next = `${partial}${char}`;
+        if (encoder.encode(next).length <= maxBytes) {
+          partial = next;
+        } else {
+          if (partial) chunks.push(partial);
+          partial = char;
+        }
+      }
+      if (partial) {
+        chunks.push(partial);
+      }
+    }
+
+    if (localChunk) chunks.push(localChunk);
+  };
+
+  const sentenceParts = normalized.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [normalized];
+
+  for (const sentencePart of sentenceParts) {
+    const sentence = sentencePart.trim();
+    if (!sentence) continue;
+
+    const candidate = currentChunk ? `${currentChunk} ${sentence}` : sentence;
+    if (encoder.encode(candidate).length <= maxBytes) {
+      currentChunk = candidate;
+      continue;
+    }
+
+    flushCurrentChunk();
+
+    if (encoder.encode(sentence).length <= maxBytes) {
+      currentChunk = sentence;
+    } else {
+      pushSegmentWithinLimit(sentence);
+    }
+  }
+
+  flushCurrentChunk();
+
+  return chunks;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -82,44 +168,69 @@ serve(async (req) => {
       });
     }
 
+    const textChunks = splitTextByByteLimit(cleanText);
+
+    if (!textChunks.length) {
+      return new Response(JSON.stringify({ error: 'No speakable text after processing' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get voice config for language
     const voiceConfig = languageVoiceMap[language] || languageVoiceMap['en'];
 
     // Calculate speaking rate
     const speakingRate = rate ?? 0.95;
 
-    const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_TTS_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: { text: cleanText },
-          voice: {
-            languageCode: voiceConfig.languageCode,
-            name: voiceConfig.name,
-            ssmlGender: voiceConfig.ssmlGender,
-          },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            speakingRate,
-            pitch: 0,
-            volumeGainDb: 0,
-            effectsProfileId: ['small-bluetooth-speaker-class-device'],
-          },
-        }),
-      }
-    );
+    const audioChunks: string[] = [];
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Google TTS API error:', response.status, errorData);
-      throw new Error(`Google TTS API error: ${response.status} - ${errorData}`);
+    for (let i = 0; i < textChunks.length; i += 1) {
+      const chunk = textChunks[i];
+
+      const response = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_TTS_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: { text: chunk },
+            voice: {
+              languageCode: voiceConfig.languageCode,
+              name: voiceConfig.name,
+              ssmlGender: voiceConfig.ssmlGender,
+            },
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate,
+              pitch: 0,
+              volumeGainDb: 0,
+              effectsProfileId: ['small-bluetooth-speaker-class-device'],
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Google TTS API error:', response.status, errorData, `chunk=${i + 1}/${textChunks.length}`);
+        throw new Error(`Google TTS API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = await response.json();
+
+      if (!data?.audioContent) {
+        throw new Error(`No audio content received for chunk ${i + 1}`);
+      }
+
+      audioChunks.push(data.audioContent);
     }
 
-    const data = await response.json();
-
-    return new Response(JSON.stringify({ audioContent: data.audioContent }), {
+    return new Response(JSON.stringify({
+      audioContent: audioChunks[0] ?? null,
+      audioChunks,
+      totalChunks: audioChunks.length,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
