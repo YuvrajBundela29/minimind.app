@@ -1,9 +1,24 @@
 // Speech Service - Google Cloud TTS with browser fallback
 import { LanguageKey } from '@/config/minimind';
 
+type SpeakOptions = {
+  rate?: number;
+  pitch?: number;
+  volume?: number;
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: (error: Error) => void;
+};
+
+type TtsResponse = {
+  audioContent?: string;
+  audioChunks?: string[];
+};
+
 class SpeechService {
   private currentAudio: HTMLAudioElement | null = null;
   private isSpeakingState: boolean = false;
+  private playbackToken: number = 0;
 
   isSupported(): boolean {
     return true; // Always supported via cloud TTS
@@ -12,17 +27,11 @@ class SpeechService {
   async speak(
     text: string,
     language: LanguageKey,
-    options?: {
-      rate?: number;
-      pitch?: number;
-      volume?: number;
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: (error: Error) => void;
-    }
+    options?: SpeakOptions
   ): Promise<void> {
     // Stop any current playback
     this.stop();
+    const token = this.playbackToken;
 
     // Clean text for speech
     const cleanText = text
@@ -66,39 +75,18 @@ class SpeechService {
         throw new Error(`TTS request failed: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: TtsResponse = await response.json();
+      const audioChunks = Array.isArray(data.audioChunks) && data.audioChunks.length > 0
+        ? data.audioChunks
+        : data.audioContent
+          ? [data.audioContent]
+          : [];
 
-      if (!data.audioContent) {
+      if (!audioChunks.length) {
         throw new Error('No audio content received');
       }
 
-      // Play base64 audio using data URI
-      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-      const audio = new Audio(audioUrl);
-      this.currentAudio = audio;
-      
-      if (options?.volume !== undefined) {
-        audio.volume = options.volume;
-      }
-
-      audio.onplay = () => {
-        this.isSpeakingState = true;
-        options?.onStart?.();
-      };
-
-      audio.onended = () => {
-        this.isSpeakingState = false;
-        this.currentAudio = null;
-        options?.onEnd?.();
-      };
-
-      audio.onerror = () => {
-        this.isSpeakingState = false;
-        this.currentAudio = null;
-        options?.onError?.(new Error('Audio playback error'));
-      };
-
-      await audio.play();
+      await this.playAudioChunks(audioChunks, token, options);
     } catch (error) {
       console.warn('Google Cloud TTS failed, falling back to browser:', error);
       // Fallback to browser speech synthesis
@@ -106,17 +94,77 @@ class SpeechService {
     }
   }
 
+  private async playAudioChunks(chunks: string[], token: number, options?: SpeakOptions): Promise<void> {
+    this.isSpeakingState = true;
+    options?.onStart?.();
+
+    try {
+      for (const chunk of chunks) {
+        if (token !== this.playbackToken) return;
+        await this.playSingleChunk(chunk, token, options?.volume);
+      }
+
+      if (token === this.playbackToken) {
+        this.isSpeakingState = false;
+        this.currentAudio = null;
+        options?.onEnd?.();
+      }
+    } catch (error) {
+      if (token !== this.playbackToken) return;
+      this.isSpeakingState = false;
+      this.currentAudio = null;
+      throw error instanceof Error ? error : new Error('Audio playback error');
+    }
+  }
+
+  private playSingleChunk(base64Audio: string, token: number, volume?: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (token !== this.playbackToken) {
+        resolve();
+        return;
+      }
+
+      const audio = new Audio(`data:audio/mpeg;base64,${base64Audio}`);
+      this.currentAudio = audio;
+
+      if (volume !== undefined) {
+        audio.volume = volume;
+      }
+
+      const cleanup = () => {
+        if (this.currentAudio === audio) {
+          this.currentAudio = null;
+        }
+      };
+
+      audio.onended = () => {
+        cleanup();
+        resolve();
+      };
+
+      audio.onpause = () => {
+        if (token !== this.playbackToken && audio.currentTime === 0) {
+          cleanup();
+          resolve();
+        }
+      };
+
+      audio.onerror = () => {
+        cleanup();
+        reject(new Error('Audio playback error'));
+      };
+
+      audio.play().catch((err) => {
+        cleanup();
+        reject(err instanceof Error ? err : new Error('Audio playback failed'));
+      });
+    });
+  }
+
   private speakWithBrowser(
     text: string,
     language: LanguageKey,
-    options?: {
-      rate?: number;
-      pitch?: number;
-      volume?: number;
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: (error: Error) => void;
-    }
+    options?: SpeakOptions
   ): void {
     if (typeof speechSynthesis === 'undefined') {
       options?.onError?.(new Error('Speech synthesis not supported'));
@@ -159,11 +207,14 @@ class SpeechService {
   }
 
   stop(): void {
+    this.playbackToken += 1;
+
     if (this.currentAudio) {
-      this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
+      this.currentAudio.pause();
       this.currentAudio = null;
     }
+
     this.isSpeakingState = false;
     try { speechSynthesis?.cancel(); } catch (e) { /* ignore */ }
   }
@@ -178,7 +229,9 @@ class SpeechService {
 
   resume(): void {
     if (this.currentAudio) {
-      this.currentAudio.play();
+      this.currentAudio.play().catch(() => {
+        // ignore resume failures to avoid uncaught promise errors
+      });
     } else {
       try { speechSynthesis?.resume(); } catch (e) { /* ignore */ }
     }
