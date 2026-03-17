@@ -1,37 +1,77 @@
 
-# Fix Credit Display and Deduction
 
-## Problem
-Credits show as "13 credits" (or 15) in the side menu and never decrease because:
-1. The `useCredits()` function checks for a logged-in user and returns early (`if (!user) return false`) without deducting anything for non-authenticated users
-2. Even for logged-in users, the local state update happens but the SideMenu reads `getRemainingQuestions()` which already works -- however the DB update may fail silently if the `user_subscriptions` row doesn't exist
+## Analysis
 
-## Solution
-Make the credit system work for ALL users (logged in or not) by always updating local state first, and persisting to localStorage for non-authenticated users.
+**Critical finding**: PocketPal AI is a **React Native app** that runs llama.cpp natively on iOS/Android via C++ bindings. It cannot be ported to a browser/web context. Its core inference engine is native code, not JavaScript/WASM.
 
-## Changes
+**The correct browser-based approach** is to use `@huggingface/transformers` (Transformers.js), which runs ONNX models via WebAssembly/WebGPU entirely in the browser. This achieves the same goal (offline, on-device AI) but through browser-compatible technology.
 
-### 1. `src/contexts/SubscriptionContext.tsx` -- Fix `useCredits` for non-auth users
+**Build error**: Line 135 of `Index.tsx` uses `NodeJS.Timeout` which requires `@types/node` — needs to be changed to `ReturnType<typeof setTimeout>`.
 
-**Current behavior (broken):**
-- Line 323-324: `if (!user) return false` -- skips deduction entirely for guests
+---
 
-**New behavior:**
-- Always update the local state (dailyUsed, monthlyUsed) regardless of auth status
-- For logged-in users: also persist to the database (existing behavior)
-- For non-logged-in users: persist to `localStorage` so credits survive page refreshes
-- On mount, load credit usage from `localStorage` if no auth user exists
+## Plan
 
-### 2. `src/contexts/SubscriptionContext.tsx` -- Load saved credits from localStorage
+### 1. Fix existing build error
 
-- In the `refreshSubscription` function, when no user is found (line 196-212), check `localStorage` for saved credit state (daily used count and last reset date)
-- If the saved date is today, restore the dailyUsed count; otherwise start fresh (daily reset)
+In `src/pages/Index.tsx` line 135, replace `NodeJS.Timeout` with `ReturnType<typeof setTimeout>` to fix the TS2503 error.
 
-### 3. `src/components/SideMenu.tsx` -- Use `getCredits()` for live total
+### 2. Create Offline AI module
 
-- Replace `getRemainingQuestions()` with `getCredits().total` to show the real-time remaining credit count
-- This ensures the displayed number updates immediately after any credit deduction
+```text
+src/
+├── offline-ai/
+│   ├── OfflineAIPage.tsx       — Main page component with chat UI
+│   ├── useOfflineModel.ts      — Hook: model loading, progress, inference
+│   └── worker.ts               — Web Worker for inference (prevents UI freeze)
+```
 
-## Files to Modify
-1. `src/contexts/SubscriptionContext.tsx` -- local credit tracking for guests + always update state
-2. `src/components/SideMenu.tsx` -- show live credit total
+**Technology**: `@huggingface/transformers` — runs quantized models (ONNX format) in-browser via WASM/WebGPU. No server needed.
+
+**Model choice**: `Qwen2.5-0.5B-Instruct` (quantized Q4) — approximately 300-400MB, small enough for mobile devices, good multilingual support.
+
+### 3. Key implementation details
+
+- **Web Worker**: All inference runs in a Web Worker so the main UI thread never freezes.
+- **Lazy loading**: The `@huggingface/transformers` library and model weights are only loaded when the user navigates to `/offline-ai`.
+- **Progress tracking**: Hugging Face Transformers.js provides download progress callbacks — displayed as a progress bar.
+- **Device capability check**: Check `navigator.hardwareConcurrency` and available memory before loading. Show fallback message on weak devices.
+- **Max tokens capped** at 256 to prevent long generation times on mobile.
+- **Chat interface**: Clean UI matching the existing app theme with input field, messages area, and status indicator (Loading/Ready/Generating).
+
+### 4. Route integration
+
+Add a single new route in `App.tsx`:
+```
+<Route path="/offline-ai" element={<OfflineAIPage />} />
+```
+
+No changes to existing navigation, pages, or components.
+
+### 5. What will NOT change
+
+- Main navigation / SideMenu
+- Existing AI service (`aiService.ts`, edge functions)
+- Styling system / theme
+- Any existing page or component
+
+### 6. Performance safeguards
+
+- Fallback message if `navigator.hardwareConcurrency < 4` or device memory < 4GB
+- Abort generation button
+- Token limit of 256
+- Model loaded only on demand, garbage collected on page unmount
+
+### 7. Capacitor/Android compatibility
+
+- `@huggingface/transformers` uses only browser APIs (WASM, Web Workers, IndexedDB for caching)
+- No Node.js dependencies
+- Works in Capacitor WebView (Android 10+, iOS 15+)
+
+### Notes on model size and performance
+
+- **Qwen2.5-0.5B Q4**: ~350MB download, cached in IndexedDB after first load
+- **Performance**: Expect 2-8 tokens/sec on modern phones, 10-20+ on desktop
+- **First load**: 30-90 seconds depending on connection (model download)
+- **Subsequent loads**: 5-15 seconds (loaded from IndexedDB cache)
+
