@@ -7,7 +7,7 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 let generator: any = null;
-const MODEL_ID = 'Xenova/Qwen2.5-0.5B-Instruct';
+const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
 
 interface WorkerMessage {
   type: 'load' | 'generate' | 'abort';
