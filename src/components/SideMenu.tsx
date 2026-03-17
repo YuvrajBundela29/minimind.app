@@ -45,7 +45,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
 }) => {
   const { tier, subscription, getCredits } = useSubscription();
   const credits = getCredits();
-  const navigate = useNavigate();
+  
 
   return (
     <AnimatePresence>
