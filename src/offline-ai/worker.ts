@@ -1,5 +1,6 @@
 // Web Worker for offline AI inference — runs in a separate thread to prevent UI freezing
-import { pipeline, TextGenerationPipeline, env } from '@huggingface/transformers';
+// @ts-nocheck — pipeline() produces union types too complex for TS
+import { pipeline, env } from '@huggingface/transformers';
 
 // Configure transformers.js for browser
 env.allowLocalModels = false;
