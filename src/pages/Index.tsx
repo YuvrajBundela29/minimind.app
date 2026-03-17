@@ -132,7 +132,7 @@ const Index = () => {
   });
   
   // Back button handler ref
-  const backPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const backPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canExitRef = useRef(false);
   
   // Cleanup abort controller on unmount
