@@ -71,6 +71,69 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_notes: {
+        Row: {
+          created_at: string
+          id: string
+          language: string | null
+          mode: string | null
+          query_text: string | null
+          response_text: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          mode?: string | null
+          query_text?: string | null
+          response_text?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          mode?: string | null
+          query_text?: string | null
+          response_text?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_logs: {
+        Row: {
+          created_at: string
+          id: string
+          language: string | null
+          mode: string | null
+          query_text: string | null
+          response_length: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          mode?: string | null
+          query_text?: string | null
+          response_length?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          mode?: string | null
+          query_text?: string | null
+          response_length?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string
