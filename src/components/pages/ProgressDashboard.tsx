@@ -64,7 +64,6 @@ const ProgressDashboard: React.FC = () => {
   const { data: totalLogs = 0 } = useTotalLogCount();
 
   const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#8b5cf6'];
-  const [skillAreas, setSkillAreas] = useState<SkillArea[]>([]);
 
   // Load data from localStorage
   useEffect(() => {
