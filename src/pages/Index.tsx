@@ -444,6 +444,14 @@ const Index = () => {
           ...prev,
           [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
         }));
+        
+        // Fire-and-forget usage log
+        logUsage({
+          queryText: questionText,
+          mode: modeKey,
+          language: selectedLanguage,
+          responseLength: response.length,
+        });
       } catch (error: any) {
         if (error.name === 'AbortError') return;
         const errorMsg = 'Sorry, something went wrong. Please try again.';
@@ -693,6 +701,13 @@ const Index = () => {
           ...prev,
           [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
         }));
+        
+        logUsage({
+          queryText: prompt,
+          mode: modeKey,
+          language: selectedLanguage,
+          responseLength: response.length,
+        });
       } catch (error: any) {
         if (error.name === 'AbortError') return;
         const errorMsg = 'Sorry, something went wrong. Please try again.';
