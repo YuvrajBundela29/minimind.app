@@ -8,9 +8,6 @@ import { EarlyAccessProvider } from "@/contexts/EarlyAccessContext";
 import UpgradeModal from "@/components/UpgradeModal";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import { lazy, Suspense } from "react";
-
-const OfflineAIPage = lazy(() => import("./offline-ai/OfflineAIPage"));
 
 const queryClient = new QueryClient();
 
@@ -25,7 +22,6 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/offline-ai" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}><OfflineAIPage /></Suspense>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

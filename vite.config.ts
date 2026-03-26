@@ -15,9 +15,6 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  optimizeDeps: {
-    exclude: ['@huggingface/transformers', 'onnxruntime-node', 'sharp'],
-  },
   build: {
     rollupOptions: {
       output: {

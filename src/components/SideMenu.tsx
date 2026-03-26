@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Home, BarChart3, Zap, History, Settings, Sun, Moon, HelpCircle, User, BookOpen, Crown, FileSearch, Sparkles, MessageCircle, LayoutDashboard, MessageSquareHeart, Target, SquarePen, Cpu } from 'lucide-react';
-
+import { X, Home, BarChart3, Zap, History, Settings, Sun, Moon, HelpCircle, User, BookOpen, Crown, FileSearch, Sparkles, MessageCircle, LayoutDashboard, MessageSquareHeart, Target, SquarePen } from 'lucide-react';
 import { navigationItems, NavigationId } from '@/config/minimind';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -45,7 +44,6 @@ const SideMenu: React.FC<SideMenuProps> = ({
 }) => {
   const { tier, subscription, getCredits } = useSubscription();
   const credits = getCredits();
-  
 
   return (
     <AnimatePresence>
@@ -202,22 +200,6 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
             </nav>
             
-            {/* Offline AI Link */}
-            <div className="px-4 pb-2">
-              <motion.button
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted transition-colors text-foreground"
-                onClick={() => {
-                  window.location.href = '/offline-ai';
-                  onClose();
-                }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Cpu className="w-5 h-5" />
-                <span className="font-medium">Offline AI</span>
-                <span className="ml-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">NEW</span>
-              </motion.button>
-            </div>
-
             <div className="mx-4 h-px bg-border" />
             
             <div className="p-4 space-y-1">

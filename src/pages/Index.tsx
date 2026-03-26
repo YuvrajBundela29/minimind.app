@@ -132,7 +132,7 @@ const Index = () => {
   });
   
   // Back button handler ref
-  const backPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const canExitRef = useRef(false);
   
   // Cleanup abort controller on unmount
@@ -517,7 +517,9 @@ const Index = () => {
           toast.error('Speech not available. Try a different browser.');
         },
       });
-      setCurrentSpeech({} as any);
+      if (utterance) {
+        setCurrentSpeech(utterance);
+      }
     } catch (error) {
       console.error('Speech error:', error);
       toast.error('Speech synthesis not available');
