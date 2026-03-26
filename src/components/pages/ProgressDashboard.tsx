@@ -56,6 +56,16 @@ const ProgressDashboard: React.FC = () => {
   const [activeTopics, setActiveTopics] = useState<LearningTopic[]>([]);
   const [skillAreas, setSkillAreas] = useState<SkillArea[]>([]);
 
+  // Usage analytics hooks
+  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
+  const { data: langData, isLoading: langLoading } = useLanguageBreakdown();
+  const { data: modeData, isLoading: modeLoading } = useModeDistribution();
+  const { data: streakCount = 0, isLoading: streakLoading } = useLearningStreak();
+  const { data: totalLogs = 0 } = useTotalLogCount();
+
+  const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#8b5cf6'];
+  const [skillAreas, setSkillAreas] = useState<SkillArea[]>([]);
+
   // Load data from localStorage
   useEffect(() => {
     const savedStats = localStorage.getItem('minimind-stats');
