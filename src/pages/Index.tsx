@@ -17,6 +17,7 @@ import { apiCache } from '@/services/apiCache';
 import speechService from '@/services/speechService';
 import { downloadPDF, sharePDF, SharePlatform } from '@/utils/pdfGenerator';
 import { supabase } from '@/integrations/supabase/client';
+import { logUsage } from '@/services/usageLogger';
 
 // Session persistence key
 const SESSION_STORAGE_KEY = 'minimind-current-session';
@@ -35,6 +36,7 @@ const ExplainBackPage = React.lazy(() => import('@/components/pages/ExplainBackP
 const FullscreenMode = React.lazy(() => import('@/components/FullscreenMode'));
 const OnboardingGuide = React.lazy(() => import('@/components/OnboardingGuide'));
 const PurposeLensPage = React.lazy(() => import('@/components/pages/PurposeLensPage'));
+const NotesPage = React.lazy(() => import('@/components/pages/NotesPage'));
 
 // Types for history
 export interface HistoryItem {
