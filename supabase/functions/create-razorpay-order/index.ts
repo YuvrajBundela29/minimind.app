@@ -83,7 +83,7 @@ serve(async (req) => {
       body: JSON.stringify({
         amount,
         currency: "INR",
-        receipt: `order_${userId}_${Date.now()}`,
+        receipt: `ord_${Date.now()}`,
         notes: {
           user_id: userId,
           tier,
