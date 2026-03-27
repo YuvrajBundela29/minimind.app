@@ -188,6 +188,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const tier = subscription.tier;
   const features = TIER_FEATURES[tier];
 
+  // Ref to track credits synchronously across rapid calls
+  const creditsRef = useRef(subscription.credits);
+  useEffect(() => {
+    creditsRef.current = subscription.credits;
+  }, [subscription.credits]);
+
   // Load subscription from database
   const refreshSubscription = useCallback(async () => {
     try {
