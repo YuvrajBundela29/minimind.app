@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -188,6 +188,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const tier = subscription.tier;
   const features = TIER_FEATURES[tier];
 
+  // Ref to track credits synchronously across rapid calls
+  const creditsRef = useRef(subscription.credits);
+  useEffect(() => {
+    creditsRef.current = subscription.credits;
+  }, [subscription.credits]);
+
   // Load subscription from database
   const refreshSubscription = useCallback(async () => {
     try {
@@ -291,9 +297,10 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   // Get available credits
   const getCredits = useCallback(() => {
     const limits = CREDIT_LIMITS[tier];
-    const dailyRemaining = Math.max(0, limits.daily - subscription.credits.dailyUsed);
-    const monthlyRemaining = Math.max(0, limits.monthly - subscription.credits.monthlyUsed);
-    const bonus = subscription.credits.bonusCredits;
+    const creds = creditsRef.current;
+    const dailyRemaining = Math.max(0, limits.daily - creds.dailyUsed);
+    const monthlyRemaining = Math.max(0, limits.monthly - creds.monthlyUsed);
+    const bonus = creds.bonusCredits;
     
     return {
       daily: dailyRemaining,
@@ -301,7 +308,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       bonus,
       total: dailyRemaining + monthlyRemaining + bonus,
     };
-  }, [tier, subscription.credits]);
+  }, [tier]);
 
   // Check if user has enough credits
   const hasCredits = useCallback((cost: number) => {
@@ -322,6 +329,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     return getCredits().daily; // Free tier shows daily only
   }, [tier, getCredits]);
 
+  const showUpgradePrompt = useCallback((feature: string) => {
+    setUpgradeFeature(feature);
+    setUpgradeModalOpen(true);
+  }, []);
+
   // Use credits for an action
   const useCredits = useCallback(async (cost: number, mode: string) => {
     const available = getCredits();
@@ -331,26 +343,32 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       return false;
     }
 
-    // Deduct from daily first, then monthly, then bonus
-    let remainingCost = cost;
-    let newDailyUsed = subscription.credits.dailyUsed;
-    let newMonthlyUsed = subscription.credits.monthlyUsed;
+    // Read from ref for accurate cumulative tracking
+    const currentCredits = creditsRef.current;
     
-    // Use daily credits first
-    const dailyAvailable = CREDIT_LIMITS[tier].daily - subscription.credits.dailyUsed;
+    let remainingCost = cost;
+    let newDailyUsed = currentCredits.dailyUsed;
+    let newMonthlyUsed = currentCredits.monthlyUsed;
+    
+    const dailyAvailable = CREDIT_LIMITS[tier].daily - currentCredits.dailyUsed;
     const fromDaily = Math.min(remainingCost, dailyAvailable);
     newDailyUsed += fromDaily;
     remainingCost -= fromDaily;
     
-    // Then use monthly credits
     if (remainingCost > 0) {
-      const monthlyAvailable = CREDIT_LIMITS[tier].monthly - subscription.credits.monthlyUsed;
+      const monthlyAvailable = CREDIT_LIMITS[tier].monthly - currentCredits.monthlyUsed;
       const fromMonthly = Math.min(remainingCost, monthlyAvailable);
       newMonthlyUsed += fromMonthly;
       remainingCost -= fromMonthly;
     }
 
-    // Always update local state immediately
+    // Update ref immediately so next call sees updated values
+    creditsRef.current = {
+      ...currentCredits,
+      dailyUsed: newDailyUsed,
+      monthlyUsed: newMonthlyUsed,
+    };
+
     setSubscription(prev => ({
       ...prev,
       dailyQuestionsUsed: prev.dailyQuestionsUsed + 1,
@@ -365,20 +383,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Persist to database for logged-in users
         const today = new Date().toISOString().split('T')[0];
-        await supabase
-          .from('user_subscriptions')
-          .update({ 
-            credits_daily_used: newDailyUsed,
-            credits_monthly_used: newMonthlyUsed,
-            credits_last_daily_reset: today,
-            daily_questions_used: subscription.dailyQuestionsUsed + 1,
-            last_question_reset: today,
-          })
-          .eq('user_id', user.id);
+        await supabase.rpc('update_user_credits', {
+          p_daily_used: newDailyUsed,
+          p_monthly_used: newMonthlyUsed,
+          p_daily_reset: today,
+        });
       } else {
-        // Persist to localStorage for guests
         const today = new Date().toISOString().split('T')[0];
         localStorage.setItem('minimind_guest_credits', JSON.stringify({
           date: today,
@@ -389,19 +400,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       return true;
     } catch (error) {
       console.error('Error persisting credits:', error);
-      return true; // Already updated local state, allow usage
+      return true;
     }
-  }, [tier, subscription, getCredits]);
+  }, [tier, getCredits, showUpgradePrompt]);
 
   const useQuestion = useCallback(async () => {
-    // Default to 1 credit cost
     return useCredits(1, 'question');
   }, [useCredits]);
-
-  const showUpgradePrompt = useCallback((feature: string) => {
-    setUpgradeFeature(feature);
-    setUpgradeModalOpen(true);
-  }, []);
 
   const initiateCheckout = useCallback(async (checkoutTier: 'plus' | 'pro', planType: PlanType) => {
     setIsCheckoutLoading(true);
