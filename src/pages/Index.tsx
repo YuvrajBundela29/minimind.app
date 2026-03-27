@@ -144,13 +144,24 @@ const Index = () => {
     };
   }, []);
   
-  // Register service worker
+  // Register service worker in production only.
+  // In dev, unregister stale workers to prevent cached Vite deps causing duplicate-React hook errors.
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // SW registration failed silently
-      });
+    if (!('serviceWorker' in navigator)) return;
+
+    if (import.meta.env.DEV) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch(() => {
+          // SW cleanup failed silently
+        });
+      return;
     }
+
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // SW registration failed silently
+    });
   }, []);
   
   // Load saved data and auth
