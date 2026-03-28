@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { purposeLenses, PurposeLensKey } from '@/config/minimind';
+import CreditBadge from '@/components/CreditBadge';
 
 interface MobileHeaderProps {
   onMenuClick: () => void;
@@ -11,9 +12,10 @@ interface MobileHeaderProps {
   currentLens?: PurposeLensKey;
   onNewChat?: () => void;
   hasActiveChat?: boolean;
+  onNavigateToSubscription?: () => void;
 }
 
-const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick, currentLens = 'general', onNewChat, hasActiveChat = false }) => {
+const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick, currentLens = 'general', onNewChat, hasActiveChat = false, onNavigateToSubscription }) => {
   const { tier } = useSubscription();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const lensData = purposeLenses[currentLens];
@@ -95,6 +97,9 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, onProfileClick
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Credit Badge */}
+        <CreditBadge onNavigateToSubscription={onNavigateToSubscription} />
+
         {/* New Chat Button - only when chat is active */}
         {hasActiveChat && onNewChat && (
           <motion.button
