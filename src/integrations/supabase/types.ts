@@ -398,6 +398,10 @@ export type Database = {
       }
     }
     Functions: {
+      deduct_user_credit: {
+        Args: { p_cost: number; p_user_id: string }
+        Returns: Json
+      }
       get_user_subscription: {
         Args: never
         Returns: {
