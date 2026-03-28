@@ -392,7 +392,7 @@ const Index = () => {
   }, [purposeLens, customLensPrompt]);
   
   // Handle question submission with staggered loading
-  const { useCredits, hasCredits, getCredits, showUpgradePrompt, tier } = useSubscription();
+  const { useCredits, hasCredits, getCredits, showUpgradePrompt, tier, syncCreditsFromServer } = useSubscription();
 
   const handleSubmit = useCallback(async () => {
     if (!question.trim()) return;
