@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Credit costs per mode/type
+const CREDIT_COSTS: Record<string, number> = {
+  beginner: 1,
+  thinker: 2,
+  story: 3,
+  mastery: 4,
+  ekakshar: 5,
+  ekakshar_quick: 3,
+  learning_path: 5,
+  explain_back_evaluate: 2,
+};
+
 // Input validation constants
 const MAX_PROMPT_LENGTH = 5000;
 const MAX_MESSAGE_LENGTH = 10000;
@@ -19,7 +31,7 @@ const VALID_LANGUAGES = [
   "kn-roman", "ml-roman", "mr-roman", "pa-roman", "ur-roman", "sa-roman"
 ];
 
-// Purpose Lens prompt adapters - adapts all modes to user's learning context
+// Purpose Lens prompt adapters
 const purposeLensAdapters: Record<string, { context: string; examples: string; tone: string; relevance: string }> = {
   general: {
     context: 'General knowledge exploration',
@@ -65,7 +77,6 @@ const purposeLensAdapters: Record<string, { context: string; examples: string; t
   }
 };
 
-// Function to build purpose lens instruction
 function buildPurposeLensPrompt(purposeLens: string, customLensPrompt?: string): string {
   if (purposeLens === 'custom' && customLensPrompt) {
     return `\n\nPURPOSE LENS ADAPTATION:
@@ -75,7 +86,7 @@ Adapt your explanation to match this specific context. Use examples, tone, and r
   
   const adapter = purposeLensAdapters[purposeLens];
   if (!adapter || purposeLens === 'general') {
-    return ''; // No adaptation needed for general
+    return '';
   }
   
   return `\n\nPURPOSE LENS ADAPTATION:
@@ -86,7 +97,7 @@ Relevance focus: ${adapter.relevance}
 
 Apply these adaptations while maintaining your core mode style. Make the explanation feel tailored to this specific learning context.`;
 }
-// Global Clarity Engine preamble - prepended to all mode prompts
+
 const clarityEnginePreamble = `You are MiniMind — a high-precision AI Clarity Engine. Your mission is to make concepts permanently click. You are NOT a chatbot. You are a structured learning system built for Indian students.
 
 Rules:
@@ -204,7 +215,6 @@ FORMAT:
 🎓 Deep Explanation → Edge Cases → 🎯 Examiner's Perspective → ⚠️ Common Mistakes → 📌 Memory Hook`,
 };
 
-// Language prompts
 const languagePrompts: Record<string, string> = {
   en: "Respond in English.",
   hi: "Respond in Hindi (हिंदी).",
@@ -246,62 +256,44 @@ const languagePrompts: Record<string, string> = {
   "sa-roman": "Respond in Sanskrit but written in Roman/English script (transliteration).",
 };
 
-// Input validation functions
 function validateString(value: unknown, maxLength: number, fieldName: string): string | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== "string") {
-    throw new Error(`${fieldName} must be a string`);
-  }
-  if (value.length > maxLength) {
-    throw new Error(`${fieldName} must be less than ${maxLength} characters`);
-  }
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") throw new Error(`${fieldName} must be a string`);
+  if (value.length > maxLength) throw new Error(`${fieldName} must be less than ${maxLength} characters`);
   return value.trim();
 }
 
 function validateEnum(value: unknown, validValues: string[], fieldName: string, defaultValue: string): string {
-  if (value === undefined || value === null) {
-    return defaultValue;
-  }
-  if (typeof value !== "string") {
-    throw new Error(`${fieldName} must be a string`);
-  }
-  if (!validValues.includes(value)) {
-    throw new Error(`${fieldName} must be one of: ${validValues.join(", ")}`);
-  }
+  if (value === undefined || value === null) return defaultValue;
+  if (typeof value !== "string") throw new Error(`${fieldName} must be a string`);
+  if (!validValues.includes(value)) throw new Error(`${fieldName} must be one of: ${validValues.join(", ")}`);
   return value;
 }
 
 function validateMessages(messages: unknown): Array<{ role: string; content: string }> | null {
-  if (messages === undefined || messages === null) {
-    return null;
-  }
-  if (!Array.isArray(messages)) {
-    throw new Error("messages must be an array");
-  }
-  if (messages.length > MAX_MESSAGES_COUNT) {
-    throw new Error(`messages cannot exceed ${MAX_MESSAGES_COUNT} items`);
-  }
+  if (messages === undefined || messages === null) return null;
+  if (!Array.isArray(messages)) throw new Error("messages must be an array");
+  if (messages.length > MAX_MESSAGES_COUNT) throw new Error(`messages cannot exceed ${MAX_MESSAGES_COUNT} items`);
   
   return messages.map((msg, index) => {
-    if (typeof msg !== "object" || msg === null) {
-      throw new Error(`messages[${index}] must be an object`);
-    }
+    if (typeof msg !== "object" || msg === null) throw new Error(`messages[${index}] must be an object`);
     const { role, content } = msg as { role: unknown; content: unknown };
-    
-    if (typeof role !== "string" || !["user", "assistant", "system"].includes(role)) {
-      throw new Error(`messages[${index}].role must be 'user', 'assistant', or 'system'`);
-    }
-    if (typeof content !== "string") {
-      throw new Error(`messages[${index}].content must be a string`);
-    }
-    if (content.length > MAX_MESSAGE_LENGTH) {
-      throw new Error(`messages[${index}].content exceeds maximum length of ${MAX_MESSAGE_LENGTH}`);
-    }
-    
+    if (typeof role !== "string" || !["user", "assistant", "system"].includes(role)) throw new Error(`messages[${index}].role must be 'user', 'assistant', or 'system'`);
+    if (typeof content !== "string") throw new Error(`messages[${index}].content must be a string`);
+    if (content.length > MAX_MESSAGE_LENGTH) throw new Error(`messages[${index}].content exceeds maximum length of ${MAX_MESSAGE_LENGTH}`);
     return { role, content: content.trim() };
   });
+}
+
+// Determine credit cost from request type and mode
+function getCreditCost(type: string, mode: string): number {
+  if (type === "refine") return 0; // Refining is free
+  if (type === "ekakshar") return CREDIT_COSTS.ekakshar || 5;
+  if (type === "learning_path") return CREDIT_COSTS.learning_path || 5;
+  if (type === "explain_back_evaluate") return CREDIT_COSTS.explain_back_evaluate || 2;
+  if (type === "continue") return CREDIT_COSTS[mode] || 1;
+  // Standard explain — cost based on mode
+  return CREDIT_COSTS[mode] || 1;
 }
 
 serve(async (req) => {
@@ -310,17 +302,14 @@ serve(async (req) => {
   }
 
   try {
-    // Properly validate JWT using Supabase auth (JWT is pre-verified via verify_jwt = true in config)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      console.error("Authentication required: No Authorization header");
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create authenticated Supabase client and validate user
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -331,7 +320,6 @@ serve(async (req) => {
     const { data: claims, error: authError } = await supabaseClient.auth.getClaims(token);
     
     if (authError || !claims?.claims) {
-      console.error("Authentication failed:", authError?.message || "Invalid claims");
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -341,7 +329,6 @@ serve(async (req) => {
     const userId = claims.claims.sub;
     console.log(`Processing request for authenticated user: ${userId.substring(0, 8)}...`);
 
-    // Parse and validate input
     let requestBody: unknown;
     try {
       requestBody = await req.json();
@@ -361,7 +348,6 @@ serve(async (req) => {
 
     const body = requestBody as Record<string, unknown>;
     
-    // Validate all inputs
     const prompt = validateString(body.prompt, MAX_PROMPT_LENGTH, "prompt");
     const mode = validateEnum(body.mode, VALID_MODES, "mode", "beginner");
     const language = validateEnum(body.language, VALID_LANGUAGES, "language", "en");
@@ -380,10 +366,45 @@ serve(async (req) => {
       );
     }
 
+    // --- SERVER-SIDE CREDIT CHECK & DEDUCTION ---
+    const creditCost = getCreditCost(type, mode);
+    
+    // Create admin client for credit operations (bypasses RLS)
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Pre-check credits (only for non-free operations)
+    if (creditCost > 0) {
+      try {
+        const { data: preCheck, error: preCheckError } = await adminClient.rpc('deduct_user_credit', {
+          p_user_id: userId,
+          p_cost: 0 // Pre-check mode
+        });
+
+        if (preCheckError) {
+          console.error("Credit pre-check error:", preCheckError.message);
+          // Don't block — proceed and try to deduct after
+        } else if (preCheck && !preCheck.success && preCheck.error === 'credits_exhausted') {
+          return new Response(
+            JSON.stringify({ 
+              error: "credits_exhausted", 
+              tier: preCheck.tier,
+              credits_remaining: 0 
+            }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("Credit pre-check exception:", e);
+        // Don't block on pre-check failure
+      }
+    }
+
     let systemPrompt = "";
     let userMessage = prompt || "";
 
-    // Handle different request types
     if (type === "refine") {
       if (!prompt) {
         return new Response(
@@ -595,7 +616,6 @@ FORMAT:
       const purposePrompt = buildPurposeLensPrompt(purposeLens, customLensPrompt || undefined);
       systemPrompt = `${systemPrompt}${purposePrompt}\n\nCONTINUITY: If the user has prior context in the conversation, connect the current concept to the previous one. Show knowledge progression and build cumulative understanding. Always think: "How does this concept fit into a bigger map?"\n\n${langPrompt}`;
     } else {
-      // Standard explanation request
       if (!prompt) {
         return new Response(
           JSON.stringify({ error: "prompt is required" }),
@@ -615,7 +635,7 @@ FORMAT:
           { role: "user", content: userMessage },
         ];
 
-    console.log(`User ${userId} - Processing ${type} request, mode: ${mode}, language: ${language}`);
+    console.log(`User ${userId} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -654,17 +674,46 @@ FORMAT:
     const data = await response.json();
     const generatedText = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
 
+    // --- SERVER-SIDE CREDIT DEDUCTION (after successful AI response) ---
+    let creditsRemaining: number | null = null;
+    let dailyRemaining: number | null = null;
+    let monthlyRemaining: number | null = null;
+
+    if (creditCost > 0) {
+      try {
+        const { data: deductResult, error: deductError } = await adminClient.rpc('deduct_user_credit', {
+          p_user_id: userId,
+          p_cost: creditCost
+        });
+
+        if (deductError) {
+          console.error("Credit deduction error:", deductError.message);
+        } else if (deductResult) {
+          creditsRemaining = deductResult.credits_remaining ?? null;
+          dailyRemaining = deductResult.daily_remaining ?? null;
+          monthlyRemaining = deductResult.monthly_remaining ?? null;
+          console.log(`User ${userId} - Deducted ${creditCost} credits. Remaining: ${creditsRemaining}`);
+        }
+      } catch (e) {
+        console.error("Credit deduction exception:", e);
+        // Never block the response — user still gets their AI answer
+      }
+    }
+
     return new Response(
-      JSON.stringify({ response: generatedText }),
+      JSON.stringify({ 
+        response: generatedText,
+        credits_remaining: creditsRemaining,
+        daily_remaining: dailyRemaining,
+        monthly_remaining: monthlyRemaining,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    // Log error details server-side only
     console.error("Chat function error:", error instanceof Error ? error.message : "Unknown error");
     
-    // Return generic error to client
     const errorMessage = error instanceof Error && error.message.includes("must be")
-      ? error.message  // Validation errors are safe to show
+      ? error.message
       : "An error occurred processing your request";
     
     return new Response(
