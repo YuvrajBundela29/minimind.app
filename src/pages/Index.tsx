@@ -938,6 +938,13 @@ const Index = () => {
           onSelect={handlePurposeLensSelect}
         />
       )}
+      
+      {/* Credit Exhaustion Modal */}
+      <CreditExhaustionModal
+        open={showCreditExhaustion}
+        onOpenChange={setShowCreditExhaustion}
+        onNavigateToSubscription={() => setCurrentPage('subscription')}
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { Check, Crown, Sparkles, Zap, Brain, BookOpen, Rocket, Shield, Clock, X,
 import { useSubscription, PRICING, FREE_DAILY_LIMIT, CREDIT_LIMITS, TOP_UP_PRODUCTS } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import CreditHistory from '@/components/CreditHistory';
 
 const SubscriptionPage: React.FC = () => {
   const { tier, subscription, initiateCheckout, initiateTopUp, isCheckoutLoading, getCredits } = useSubscription();
@@ -359,6 +360,15 @@ const SubscriptionPage: React.FC = () => {
             </div>
           </motion.div>
         )}
+      </motion.div>
+
+      {/* Credit History Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+      >
+        <CreditHistory />
       </motion.div>
 
       {/* Early Learner Advantage */}
