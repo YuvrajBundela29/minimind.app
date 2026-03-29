@@ -110,7 +110,7 @@ const ExplainBackPage: React.FC = () => {
 
       setEvaluation({
         score,
-        feedback: responseText,
+        feedback: cleanedFeedback,
       });
       
       setStep('feedback');
