@@ -8,56 +8,65 @@ const MODE_COLORS: Record<ModeKey, { primary: [number, number, number]; light: [
   mastery:  { primary: [59, 130, 246],  light: [239, 246, 255], accent: [37, 99, 235] },
 };
 
-// ─── Thoroughly strip markdown to clean plain text ───────────────────
+// ─── Thoroughly strip ALL markdown to clean plain text ───────────────
 function stripMarkdown(text: string): string {
   return text
+    // Code blocks (multi-line)
+    .replace(/```[\s\S]*?```/g, '')
+    // Inline code
+    .replace(/`([^`]+)`/g, '$1')
+    // Bold+italic combinations
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
+    .replace(/___(.+?)___/g, '$1')
+    // Bold
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/__(.+?)__/g, '$1')
+    // Italic
     .replace(/\*(.+?)\*/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
+    .replace(/_([^_\s][^_]*[^_\s])_/g, '$1')
+    // Strikethrough
     .replace(/~~(.+?)~~/g, '$1')
-    .replace(/`(.+?)`/g, '$1')
-    .replace(/```[\s\S]*?```/g, '')
+    // Highlight
+    .replace(/==(.+?)==/g, '$1')
     .replace(/\^\^(.+?)\^\^/g, '$1')
+    // Wiki-style links
     .replace(/\[\[(.+?)\]\]/g, '$1')
+    // Markdown links
     .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    // Images
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    // Blockquotes
+    .replace(/^>\s?/gm, '')
+    // Heading markers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Horizontal rules
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // Stray asterisks and underscores at word boundaries
+    .replace(/(?<!\w)\*{1,2}(?!\s)/g, '')
+    .replace(/(?<!\s)\*{1,2}(?!\w)/g, '')
+    // HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Multiple spaces
+    .replace(/ {2,}/g, ' ')
     .trim();
-}
-
-// ─── Extract bold segments for rich rendering ────────────────────────
-interface TextSegment {
-  text: string;
-  bold: boolean;
-}
-
-function parseInlineFormatting(text: string): TextSegment[] {
-  const segments: TextSegment[] = [];
-  const regex = /\*\*(.+?)\*\*/g;
-  let lastIndex = 0;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ text: stripMarkdown(text.slice(lastIndex, match.index)), bold: false });
-    }
-    segments.push({ text: match[1], bold: true });
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    segments.push({ text: stripMarkdown(text.slice(lastIndex)), bold: false });
-  }
-
-  return segments.length ? segments : [{ text: stripMarkdown(text), bold: false }];
 }
 
 // ─── Parse content into structured blocks ────────────────────────────
 interface ContentBlock {
   type: 'heading' | 'paragraph' | 'bullet' | 'numbered' | 'emoji-heading' | 'divider';
   content: string;
-  segments?: TextSegment[];
   level?: number;
   emoji?: string;
+  boldParts?: string[]; // track which parts should be bold
+}
+
+function extractBoldParts(text: string): { clean: string; boldParts: string[] } {
+  const boldParts: string[] = [];
+  const clean = text.replace(/\*\*(.+?)\*\*/g, (_match, p1) => {
+    boldParts.push(p1);
+    return p1;
+  });
+  return { clean: stripMarkdown(clean), boldParts };
 }
 
 function parseContentToBlocks(text: string): ContentBlock[] {
@@ -69,21 +78,34 @@ function parseContentToBlocks(text: string): ContentBlock[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Skip lines that are just markdown symbols
+    // Skip pure symbol lines (horizontal rules)
     if (/^[-=_*]{3,}$/.test(trimmed)) {
       blocks.push({ type: 'divider', content: '' });
       continue;
     }
 
-    // Emoji heading pattern: "🌱 **The Simple Answer**" or "📌 **Memory Hook**"
-    const emojiHeadingMatch = trimmed.match(/^([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{2B50}\u{23F0}\u{2764}\u{FE0F}\u{1F004}-\u{1F0CF}]+)\s+\*\*(.+?)\*\*\s*[-—:]?\s*(.*)/u);
+    // Emoji heading: starts with emoji followed by bold text or colon
+    const emojiHeadingMatch = trimmed.match(/^([\p{Emoji_Presentation}\p{Extended_Pictographic}]+)\s+\*\*(.+?)\*\*\s*[-:\u2014]?\s*(.*)/u);
     if (emojiHeadingMatch) {
       const emoji = emojiHeadingMatch[1];
-      const heading = emojiHeadingMatch[2];
+      const heading = stripMarkdown(emojiHeadingMatch[2]);
       const rest = emojiHeadingMatch[3]?.trim();
       blocks.push({ type: 'emoji-heading', content: heading, emoji });
       if (rest) {
-        blocks.push({ type: 'paragraph', content: rest, segments: parseInlineFormatting(rest) });
+        const { clean, boldParts } = extractBoldParts(rest);
+        blocks.push({ type: 'paragraph', content: clean, boldParts });
+      }
+      numberedIndex = 0;
+      continue;
+    }
+
+    // Emoji heading variant: emoji + text (no bold markers)
+    const emojiSimpleMatch = trimmed.match(/^([\p{Emoji_Presentation}\p{Extended_Pictographic}]+)\s+([A-Z][\w\s]+)[:]\s*(.*)/u);
+    if (emojiSimpleMatch) {
+      blocks.push({ type: 'emoji-heading', content: stripMarkdown(emojiSimpleMatch[2]), emoji: emojiSimpleMatch[1] });
+      if (emojiSimpleMatch[3]?.trim()) {
+        const { clean, boldParts } = extractBoldParts(emojiSimpleMatch[3]);
+        blocks.push({ type: 'paragraph', content: clean, boldParts });
       }
       numberedIndex = 0;
       continue;
@@ -97,18 +119,19 @@ function parseContentToBlocks(text: string): ContentBlock[] {
       continue;
     }
 
-    // Bold-only line as sub-heading: "**Something Important**"
+    // Bold-only line as sub-heading
     const boldLineMatch = trimmed.match(/^\*\*(.+?)\*\*\s*$/);
     if (boldLineMatch && trimmed.length < 80) {
-      blocks.push({ type: 'heading', content: boldLineMatch[1], level: 3 });
+      blocks.push({ type: 'heading', content: stripMarkdown(boldLineMatch[1]), level: 3 });
       numberedIndex = 0;
       continue;
     }
 
-    // Bullet points (-, *, •)
+    // Bullet points (-, *, bullet char)
     const bulletMatch = trimmed.match(/^[-*\u2022]\s+(.+)$/);
     if (bulletMatch) {
-      blocks.push({ type: 'bullet', content: bulletMatch[1], segments: parseInlineFormatting(bulletMatch[1]) });
+      const { clean, boldParts } = extractBoldParts(bulletMatch[1]);
+      blocks.push({ type: 'bullet', content: clean, boldParts });
       numberedIndex = 0;
       continue;
     }
@@ -117,12 +140,14 @@ function parseContentToBlocks(text: string): ContentBlock[] {
     const numberedMatch = trimmed.match(/^\d+[.)]\s+(.+)$/);
     if (numberedMatch) {
       numberedIndex++;
-      blocks.push({ type: 'numbered', content: numberedMatch[1], segments: parseInlineFormatting(numberedMatch[1]), level: numberedIndex });
+      const { clean, boldParts } = extractBoldParts(numberedMatch[1]);
+      blocks.push({ type: 'numbered', content: clean, boldParts, level: numberedIndex });
       continue;
     }
 
     // Regular paragraph
-    blocks.push({ type: 'paragraph', content: trimmed, segments: parseInlineFormatting(trimmed) });
+    const { clean, boldParts } = extractBoldParts(trimmed);
+    blocks.push({ type: 'paragraph', content: clean, boldParts });
     numberedIndex = 0;
   }
 
@@ -135,37 +160,80 @@ async function loadJsPDF() {
   return jsPDF;
 }
 
-// ─── Render rich text segments with bold support ─────────────────────
-function renderRichText(
+// ─── Render text with inline bold highlighting ───────────────────────
+function renderTextWithBold(
   doc: any,
-  segments: TextSegment[],
+  text: string,
+  boldParts: string[],
   x: number,
   y: number,
   maxWidth: number,
   fontSize: number,
   textColor: [number, number, number],
-  boldColor?: [number, number, number]
+  accentColor: [number, number, number]
 ): number {
-  // Flatten segments to plain text for splitTextToSize
-  const fullText = segments.map(s => s.text).join('');
   doc.setFontSize(fontSize);
   doc.setFont('helvetica', 'normal');
-  const wrappedLines: string[] = doc.splitTextToSize(fullText, maxWidth);
+  const lineHeight = fontSize * 0.45;
+  const wrappedLines: string[] = doc.splitTextToSize(text, maxWidth);
 
   let totalHeight = 0;
-  const lineHeight = fontSize * 0.45;
 
   for (const line of wrappedLines) {
-    // For each wrapped line, try to apply bold segments
-    let charPos = 0;
-    let xOffset = x;
-    let remainingLine = line;
+    // Check if this line contains any bold part
+    let hasBold = false;
+    for (const bp of boldParts) {
+      if (line.includes(bp)) {
+        hasBold = true;
+        break;
+      }
+    }
 
-    // Simple approach: render the whole line, then overlay bold parts
-    // For simplicity and reliability, render line-by-line with proper font
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...textColor);
-    doc.text(line, x, y + totalHeight);
+    if (hasBold && boldParts.length > 0) {
+      // Render with bold segments
+      let xOffset = x;
+      let remaining = line;
+
+      while (remaining.length > 0) {
+        let foundBold = false;
+        for (const bp of boldParts) {
+          const idx = remaining.indexOf(bp);
+          if (idx >= 0) {
+            // Render text before the bold part
+            if (idx > 0) {
+              const before = remaining.substring(0, idx);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(...textColor);
+              doc.text(before, xOffset, y + totalHeight);
+              xOffset += doc.getTextWidth(before);
+            }
+            // Render the bold part
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...accentColor);
+            doc.text(bp, xOffset, y + totalHeight);
+            xOffset += doc.getTextWidth(bp);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...textColor);
+
+            remaining = remaining.substring(idx + bp.length);
+            foundBold = true;
+            break;
+          }
+        }
+        if (!foundBold) {
+          // No more bold parts, render rest normally
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...textColor);
+          doc.text(remaining, xOffset, y + totalHeight);
+          remaining = '';
+        }
+      }
+    } else {
+      // Normal line
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...textColor);
+      doc.text(line, x, y + totalHeight);
+    }
     totalHeight += lineHeight;
   }
 
@@ -189,9 +257,8 @@ export async function generatePDF(
   const contentWidth = pageWidth - margin * 2;
   let yPos = 0;
 
-  // ── Helper: Add page with watermark & footer ──
-  const addPageDecoration = (pageNum: number, totalPages?: number) => {
-    // Subtle background color
+  const addPageDecoration = () => {
+    // Subtle background
     doc.setFillColor(252, 252, 253);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
@@ -226,22 +293,18 @@ export async function generatePDF(
     doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), pageWidth - margin, pageHeight - 8, { align: 'right' });
   };
 
-  // ── Helper: Check for new page ──
   const checkNewPage = (neededSpace: number) => {
     if (yPos + neededSpace > pageHeight - 28) {
       doc.addPage();
-      addPageDecoration(doc.getNumberOfPages());
+      addPageDecoration();
       yPos = 18;
       return true;
     }
     return false;
   };
 
-  // ═══════════════════════════════════════════════════════════════════
-  // PAGE 1 HEADER
-  // ═══════════════════════════════════════════════════════════════════
-  addPageDecoration(1);
-
+  // ═══ PAGE 1 HEADER ═══
+  addPageDecoration();
   yPos = 16;
 
   // Mode banner
@@ -251,19 +314,16 @@ export async function generatePDF(
   doc.setLineWidth(0.8);
   doc.roundedRect(margin, yPos, contentWidth, 28, 4, 4, 'S');
 
-  // Mode icon placeholder (text emoji) + Mode name
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...colors.accent);
   doc.text(`${mode.name} Mode`, margin + 10, yPos + 13);
 
-  // Mode tagline
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 110);
   doc.text(mode.tagline, margin + 10, yPos + 22);
 
-  // MiniMind brand on right
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...colors.primary);
@@ -272,29 +332,19 @@ export async function generatePDF(
   yPos += 36;
 
   // ── Question card ──
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, yPos, contentWidth, 0, 3, 3, 'F'); // placeholder height
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...colors.primary);
-  doc.text('QUESTION', margin + 8, yPos + 8);
-
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(40, 40, 50);
   const cleanQuestion = stripMarkdown(question);
   const questionLines: string[] = doc.splitTextToSize(cleanQuestion, contentWidth - 16);
-  doc.text(questionLines, margin + 8, yPos + 16);
-
   const questionBoxHeight = 22 + questionLines.length * 4.5;
+
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(margin, yPos, contentWidth, questionBoxHeight, 3, 3, 'F');
   doc.setDrawColor(220, 220, 225);
   doc.setLineWidth(0.4);
   doc.roundedRect(margin, yPos, contentWidth, questionBoxHeight, 3, 3, 'S');
 
-  // Re-render text on top of card
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...colors.primary);
@@ -306,7 +356,7 @@ export async function generatePDF(
 
   yPos += questionBoxHeight + 8;
 
-  // ── Accent divider ──
+  // Accent divider
   doc.setDrawColor(...colors.primary);
   doc.setLineWidth(1.2);
   doc.line(margin, yPos, margin + 40, yPos);
@@ -315,26 +365,24 @@ export async function generatePDF(
   doc.line(margin + 42, yPos, pageWidth - margin, yPos);
   yPos += 10;
 
-  // ═══════════════════════════════════════════════════════════════════
-  // ANSWER CONTENT
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══ ANSWER CONTENT ═══
   const blocks = parseContentToBlocks(content);
 
   for (const block of blocks) {
     switch (block.type) {
       case 'emoji-heading': {
         checkNewPage(18);
-        // Colored background bar for section headings
         doc.setFillColor(...colors.light);
         doc.roundedRect(margin, yPos - 3, contentWidth, 12, 2, 2, 'F');
         doc.setDrawColor(...colors.primary);
         doc.setLineWidth(0.4);
-        doc.line(margin, yPos - 3, margin, yPos + 9); // Left accent line
-        
+        doc.line(margin, yPos - 3, margin, yPos + 9);
+
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...colors.accent);
-        doc.text(`${block.emoji || ''}  ${block.content}`, margin + 6, yPos + 5);
+        // Use a simple marker instead of emoji (emojis don't render in jsPDF)
+        doc.text(`> ${block.content}`, margin + 6, yPos + 5);
         yPos += 16;
         break;
       }
@@ -345,7 +393,6 @@ export async function generatePDF(
         checkNewPage(hSize + 8);
 
         if (level <= 2) {
-          // Accent line before major headings
           doc.setDrawColor(...colors.primary);
           doc.setLineWidth(0.6);
           doc.line(margin, yPos, margin + 20, yPos);
@@ -363,25 +410,21 @@ export async function generatePDF(
 
       case 'bullet': {
         checkNewPage(14);
-        doc.setFontSize(9.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(45, 45, 55);
-
         // Colored bullet dot
         doc.setFillColor(...colors.primary);
         doc.circle(margin + 3, yPos - 1.2, 1.5, 'F');
 
-        const bulletText = stripMarkdown(block.content);
-        const bulletLines: string[] = doc.splitTextToSize(bulletText, contentWidth - 12);
-        doc.text(bulletLines, margin + 9, yPos);
-        yPos += bulletLines.length * 4.3 + 3;
+        const h = renderTextWithBold(
+          doc, block.content, block.boldParts || [],
+          margin + 9, yPos, contentWidth - 12, 9.5,
+          [45, 45, 55], colors.accent
+        );
+        yPos += h + 3;
         break;
       }
 
       case 'numbered': {
         checkNewPage(14);
-        doc.setFontSize(9.5);
-
         // Numbered circle
         doc.setFillColor(...colors.primary);
         doc.circle(margin + 4, yPos - 1, 4, 'F');
@@ -390,13 +433,12 @@ export async function generatePDF(
         doc.setTextColor(255, 255, 255);
         doc.text(`${block.level}`, margin + 4, yPos + 0.5, { align: 'center' });
 
-        doc.setFontSize(9.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(45, 45, 55);
-        const numText = stripMarkdown(block.content);
-        const numLines: string[] = doc.splitTextToSize(numText, contentWidth - 16);
-        doc.text(numLines, margin + 12, yPos);
-        yPos += numLines.length * 4.3 + 3;
+        const h = renderTextWithBold(
+          doc, block.content, block.boldParts || [],
+          margin + 12, yPos, contentWidth - 16, 9.5,
+          [45, 45, 55], colors.accent
+        );
+        yPos += h + 3;
         break;
       }
 
@@ -412,26 +454,25 @@ export async function generatePDF(
       case 'paragraph':
       default: {
         checkNewPage(14);
-        doc.setFontSize(9.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(45, 45, 55);
-        const paraText = stripMarkdown(block.content);
-        const paraLines: string[] = doc.splitTextToSize(paraText, contentWidth);
-        doc.text(paraLines, margin, yPos);
-        yPos += paraLines.length * 4.3 + 4;
+        const h = renderTextWithBold(
+          doc, block.content, block.boldParts || [],
+          margin, yPos, contentWidth, 9.5,
+          [45, 45, 55], colors.accent
+        );
+        yPos += h + 4;
         break;
       }
     }
   }
 
-  // ── Bottom brand card on last page ──
+  // ── Bottom brand card ──
   if (yPos < pageHeight - 50) {
     yPos = Math.max(yPos + 8, pageHeight - 45);
   } else {
     checkNewPage(35);
     yPos += 8;
   }
-  
+
   doc.setFillColor(...colors.light);
   doc.roundedRect(margin, yPos, contentWidth, 18, 3, 3, 'F');
   doc.setDrawColor(...colors.primary);
@@ -465,8 +506,9 @@ export async function sharePDF(
   platform: SharePlatform = 'native'
 ): Promise<boolean> {
   const mode = modes[modeKey];
-  const shareText = `Check out this ${mode.name} explanation from MiniMind:\n\n"${question.substring(0, 100)}..."\n\n${stripMarkdown(content).substring(0, 500)}...\n\nLearn more at MiniMind`;
-  const shareTitle = `MiniMind ${mode.name} - ${question.substring(0, 50)}`;
+  const cleanContent = stripMarkdown(content);
+  const shareText = `Check out this ${mode.name} explanation from MiniMind:\n\n"${stripMarkdown(question).substring(0, 100)}..."\n\n${cleanContent.substring(0, 500)}...\n\nLearn more at MiniMind`;
+  const shareTitle = `MiniMind ${mode.name} - ${stripMarkdown(question).substring(0, 50)}`;
 
   switch (platform) {
     case 'whatsapp': {
@@ -506,7 +548,7 @@ export async function sharePDF(
       if (navigator.share && navigator.canShare) {
         const shareData = {
           title: shareTitle,
-          text: `Check out this ${mode.name} explanation from MiniMind: "${question.substring(0, 50)}..."`,
+          text: `Check out this ${mode.name} explanation from MiniMind: "${stripMarkdown(question).substring(0, 50)}..."`,
           files: [file],
         };
 
@@ -525,7 +567,7 @@ export async function sharePDF(
         try {
           await navigator.share({
             title: shareTitle,
-            text: `Check out this ${mode.name} explanation from MiniMind: "${question.substring(0, 50)}..."`,
+            text: `Check out this ${mode.name} explanation from MiniMind: "${stripMarkdown(question).substring(0, 50)}..."`,
           });
           await downloadPDF(content, modeKey, question);
           return true;

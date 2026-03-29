@@ -112,6 +112,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         setProfile(profileData);
         setEditName(profileData.display_name || '');
         setAvatarUrl(profileData.avatar_url || null);
+        // Load frame from DB (overrides localStorage)
+        if ((profileData as any).selected_frame) {
+          setSelectedFrameId((profileData as any).selected_frame);
+          localStorage.setItem('minimind-avatar-frame', (profileData as any).selected_frame);
+        }
       }
 
       const { data: statsData } = await supabase
@@ -199,9 +204,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
     setShowAvatarCustomizer(true);
   };
 
-  const handleSelectFrame = (frameId: string) => {
+  const handleSelectFrame = async (frameId: string) => {
     setSelectedFrameId(frameId);
     localStorage.setItem('minimind-avatar-frame', frameId);
+    if (user) {
+      await supabase.from('profiles').update({ selected_frame: frameId }).eq('user_id', user.id);
+    }
     toast.success('Frame updated!');
   };
 
