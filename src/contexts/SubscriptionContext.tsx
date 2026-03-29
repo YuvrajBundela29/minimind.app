@@ -245,30 +245,25 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 
       const now = new Date();
       const periodEnd = data.current_period_end ? new Date(data.current_period_end) : null;
-      
-      // Note: grace_period_end and daily_questions_used are not exposed via the view for security
-      // They are only needed for backend operations
-      
-      // Check for daily reset
-      const lastDailyReset = data.credits_last_daily_reset ? new Date(data.credits_last_daily_reset) : null;
-      const isNewDay = !lastDailyReset || lastDailyReset.toDateString() !== now.toDateString();
-      
-      // Check for monthly reset
-      const lastMonthlyReset = data.credits_last_monthly_reset ? new Date(data.credits_last_monthly_reset) : null;
-      const isNewMonth = !lastMonthlyReset || 
-        (lastMonthlyReset.getMonth() !== now.getMonth() || lastMonthlyReset.getFullYear() !== now.getFullYear());
+
+      // Trust database values directly — the server's deduct_user_credit function
+      // handles daily/monthly resets atomically. Do NOT do client-side reset logic.
+      const dbDailyUsed = data.credits_daily_used || 0;
+      const dbMonthlyUsed = data.credits_monthly_used || 0;
+      const lastDailyReset = data.credits_last_daily_reset ? new Date(data.credits_last_daily_reset + 'T00:00:00') : null;
+      const lastMonthlyReset = data.credits_last_monthly_reset ? new Date(data.credits_last_monthly_reset + 'T00:00:00') : null;
 
       setSubscription({
         tier: (data.tier as SubscriptionTier) || 'free',
         planType: data.plan_type as PlanType | null,
         status: data.status as 'active' | 'cancelled' | 'expired' | 'pending',
         currentPeriodEnd: periodEnd,
-        dailyQuestionsUsed: 0, // Tracked via credits, not exposed via view
-        isInGracePeriod: false, // Determined server-side, not exposed via view
+        dailyQuestionsUsed: 0,
+        isInGracePeriod: false,
         credits: {
-          dailyUsed: isNewDay ? 0 : (data.credits_daily_used || 0),
-          monthlyUsed: isNewMonth ? 0 : (data.credits_monthly_used || 0),
-          bonusCredits: 0, // TODO: Load from separate table when implemented
+          dailyUsed: dbDailyUsed,
+          monthlyUsed: dbMonthlyUsed,
+          bonusCredits: 0,
           lastDailyReset,
           lastMonthlyReset,
         },
@@ -344,7 +339,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       return false;
     }
 
-    // Read from ref for accurate cumulative tracking
+    // Optimistic UI update only — server deducts via deduct_user_credit atomically
     const currentCredits = creditsRef.current;
     
     let remainingCost = cost;
@@ -360,10 +355,9 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       const monthlyAvailable = CREDIT_LIMITS[tier].monthly - currentCredits.monthlyUsed;
       const fromMonthly = Math.min(remainingCost, monthlyAvailable);
       newMonthlyUsed += fromMonthly;
-      remainingCost -= fromMonthly;
     }
 
-    // Update ref immediately so next call sees updated values
+    // Update ref immediately for rapid-call accuracy
     creditsRef.current = {
       ...currentCredits,
       dailyUsed: newDailyUsed,
@@ -380,29 +374,24 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       },
     }));
 
+    // For guest users, persist to localStorage
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const today = new Date().toISOString().split('T')[0];
-        await supabase.rpc('update_user_credits', {
-          p_daily_used: newDailyUsed,
-          p_monthly_used: newMonthlyUsed,
-          p_daily_reset: today,
-        });
-      } else {
+      if (!user) {
         const today = new Date().toISOString().split('T')[0];
         localStorage.setItem('minimind_guest_credits', JSON.stringify({
           date: today,
           dailyUsed: newDailyUsed,
         }));
       }
-      
-      return true;
+      // For authenticated users: do NOT call update_user_credits here.
+      // The chat edge function already calls deduct_user_credit atomically.
+      // syncCreditsFromServer will update the UI with the server's response.
     } catch (error) {
-      console.error('Error persisting credits:', error);
-      return true;
+      console.error('Error in useCredits:', error);
     }
+    
+    return true;
   }, [tier, getCredits, showUpgradePrompt]);
 
   // Sync credits from server response (source of truth)
