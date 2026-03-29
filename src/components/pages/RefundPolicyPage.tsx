@@ -85,7 +85,7 @@ const RefundPolicyPage: React.FC<RefundPolicyPageProps> = ({ onBack }) => {
           <h2 className="text-base font-semibold text-foreground">6. How to Request a Refund</h2>
           <p>To request a refund:</p>
           <ol className="list-decimal pl-5 space-y-1">
-            <li>Email us at <span className="font-medium text-foreground">support@minimind.app</span></li>
+            <li>Email us at <span className="font-medium text-foreground">feedback.minimind.app@gmail.com</span></li>
             <li>Include your registered email address</li>
             <li>Provide the transaction ID or payment receipt</li>
             <li>Describe the reason for your refund request</li>
@@ -121,7 +121,7 @@ const RefundPolicyPage: React.FC<RefundPolicyPageProps> = ({ onBack }) => {
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-foreground">10. Contact Us</h2>
           <p>For refund requests or questions about this policy:</p>
-          <p className="font-medium text-foreground">support@minimind.app</p>
+          <p className="font-medium text-foreground">feedback.minimind.app@gmail.com</p>
         </section>
       </motion.div>
     </div>

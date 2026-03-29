@@ -151,7 +151,7 @@ const TermsOfServicePage: React.FC<TermsOfServicePageProps> = ({ onBack }) => {
           <p>
             For questions about these Terms, please contact us at:
           </p>
-          <p className="font-medium text-foreground">support@minimind.app</p>
+          <p className="font-medium text-foreground">feedback.minimind.app@gmail.com</p>
         </section>
       </motion.div>
     </div>

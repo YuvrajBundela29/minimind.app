@@ -126,7 +126,7 @@ const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({ onBack }) => {
             <li><strong>Withdraw Consent:</strong> Opt out of non-essential data processing</li>
           </ul>
           <p>
-            To exercise any of these rights, contact us at <span className="font-medium text-foreground">support@minimind.app</span>.
+            To exercise any of these rights, contact us at <span className="font-medium text-foreground">feedback.minimind.app@gmail.com</span>.
           </p>
         </section>
 
@@ -163,7 +163,7 @@ const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({ onBack }) => {
           <p>
             For privacy-related inquiries or to exercise your data rights, contact us at:
           </p>
-          <p className="font-medium text-foreground">support@minimind.app</p>
+          <p className="font-medium text-foreground">feedback.minimind.app@gmail.com</p>
         </section>
       </motion.div>
     </div>
