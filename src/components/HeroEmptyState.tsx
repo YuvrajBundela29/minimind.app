@@ -5,7 +5,6 @@ interface HeroEmptyStateProps {
   onPromptClick: (prompt: string) => void;
 }
 
-// Exam-focused prompts for Indian students (JEE, NEET, Class 10/12)
 const SUGGESTED_PROMPTS = [
   {
     emoji: '🧬',
@@ -44,62 +43,62 @@ const SUGGESTED_PROMPTS = [
     tagColor: 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300',
   },
 ];
-const HeroEmptyState: React.FC<HeroEmptyStateProps> = ({
-  onPromptClick
-}) => {
+
+const HeroEmptyState: React.FC<HeroEmptyStateProps> = ({ onPromptClick }) => {
   return (
-    <div className="flex flex-col items-center justify-center py-8 animate-in fade-in duration-300">
+    <div className="flex flex-col items-center justify-center py-10 md:py-16 lg:py-20 animate-in fade-in duration-300 max-w-2xl mx-auto w-full">
       {/* Hero Text */}
       <div className="text-center mb-8 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-primary">MiniMind AI</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/8 border border-primary/15 mb-5">
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-medium text-primary tracking-wide">MiniMind AI</span>
         </div>
-        
-        <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground mb-3">
-          Stuck on a concept?
+
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-foreground mb-3 leading-tight">
+          What do you want to
           <br />
-          <span className="text-primary">4 AI tutors explain it your way.</span>
+          <span className="gradient-text">learn today?</span>
         </h1>
-        
-        <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-          From ELI5 to expert. Stories to logic. Perfect for JEE, NEET & Board exams.
+
+        <p className="text-muted-foreground text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
+          4 AI tutors explain any topic your way — from ELI5 to expert.
         </p>
       </div>
 
-      {/* Prompt Carousel - CSS animations only */}
+      {/* Prompt Grid */}
       <div className="w-full animate-in slide-in-from-bottom-6 duration-700 delay-150">
-        <p className="text-xs font-medium text-muted-foreground mb-3 text-center">
-          🎯 Popular study topics...
+        <p className="text-xs font-medium text-muted-foreground mb-3 text-center tracking-wide uppercase">
+          Popular topics
         </p>
-        
-        <div className="gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar snap-x snap-mandatory items-center justify-center flex flex-col">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 px-1">
           {SUGGESTED_PROMPTS.map((prompt, index) => (
-            <button 
+            <button
               key={prompt.text}
-              onClick={() => onPromptClick(prompt.text)} 
-              className="flex-shrink-0 snap-start group flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 min-w-[280px] w-full max-w-sm text-left hover:-translate-y-0.5 active:scale-[0.98]"
+              onClick={() => onPromptClick(prompt.text)}
+              className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left active:scale-[0.98]"
               aria-label={`Ask: ${prompt.text}`}
-              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <span className="text-2xl" role="img" aria-hidden="true">{prompt.emoji}</span>
+              <span className="text-xl flex-shrink-0" role="img" aria-hidden="true">
+                {prompt.emoji}
+              </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors mb-1">
+                <p className="text-sm font-medium text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                   {prompt.text}
                 </p>
-                <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${prompt.tagColor}`}>
+                <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ${prompt.tagColor}`}>
                   {prompt.tag}
                 </span>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
             </button>
           ))}
         </div>
       </div>
 
       {/* Trust signal */}
-      <p className="text-[10px] text-muted-foreground/60 mt-4 text-center animate-in fade-in duration-1000 delay-500">
-        ✨ Trusted by 10,000+ students • 4 explanation styles • Exam-focused learning
+      <p className="text-[10px] text-muted-foreground/50 mt-6 text-center tracking-wide">
+        Trusted by 10,000+ students • 4 explanation styles • Exam-focused
       </p>
     </div>
   );

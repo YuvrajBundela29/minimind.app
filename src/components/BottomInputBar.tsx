@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Wand2, Paperclip, X, FileText, Image } from 'lucide-react';
+import { Send, Mic, Wand2, Paperclip, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FileInfo {
@@ -80,11 +80,9 @@ const BottomInputBar: React.FC<BottomInputBarProps> = ({
         type: file.type,
         content: content.includes(',') ? content.split(',')[1] : content,
       };
-      
       if (file.type.startsWith('image/')) {
         fileInfo.preview = URL.createObjectURL(file);
       }
-      
       setAttachedFile(fileInfo);
       toast.success('File attached! Press send to analyze.');
     };
@@ -114,122 +112,127 @@ const BottomInputBar: React.FC<BottomInputBarProps> = ({
   };
 
   return (
-    <div className="bottom-input-bar">
-      {/* Attached File Preview */}
-      <AnimatePresence>
-        {attachedFile && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: 10, height: 0 }}
-            className="mb-2"
-          >
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20">
-              {attachedFile.preview ? (
-                <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                  <img src={attachedFile.preview} alt="Preview" className="w-full h-full object-cover" />
+    <div className="app-input-bar">
+      <div className="app-input-inner">
+        {/* Attached File Preview */}
+        <AnimatePresence>
+          {attachedFile && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: 10, height: 0 }}
+              className="mb-2"
+            >
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-primary/8 border border-primary/15">
+                {attachedFile.preview ? (
+                  <div className="w-9 h-9 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <img src={attachedFile.preview} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-primary" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{attachedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(attachedFile.size)}</p>
                 </div>
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{attachedFile.name}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(attachedFile.size)}</p>
+                <motion.button
+                  type="button"
+                  onClick={removeFile}
+                  className="p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
               </div>
-              <motion.button
-                type="button"
-                onClick={removeFile}
-                className="p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                whileTap={{ scale: 0.95 }}
-              >
-                <X className="w-4 h-4" />
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        {/* File Upload Button - 44px touch target */}
-        {onFileAnalysis && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv"
-              onChange={handleFileSelect}
-              aria-label="Select file to analyze"
-            />
+        <form onSubmit={handleSubmit} className="flex items-end gap-1.5">
+          {/* Left actions */}
+          <div className="flex items-center gap-0.5 pb-0.5">
+            {onFileAnalysis && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv"
+                  onChange={handleFileSelect}
+                  aria-label="Select file to analyze"
+                />
+                <motion.button
+                  type="button"
+                  className="header-icon-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  whileTap={{ scale: 0.95 }}
+                  aria-label="Attach file"
+                  disabled={isLoading}
+                >
+                  <Paperclip className="w-[18px] h-[18px]" />
+                </motion.button>
+              </>
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="flex-1 min-w-0 relative">
+            <div className="input-field-container">
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={attachedFile ? "Add a message or just send..." : placeholder}
+                className="w-full bg-transparent border-none outline-none text-foreground text-sm py-2.5 px-3"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-0.5 pb-0.5">
             <motion.button
               type="button"
-              className="icon-btn icon-btn-ghost flex-shrink-0"
-              onClick={() => fileInputRef.current?.click()}
+              className="header-icon-btn"
+              onClick={onVoiceInput}
               whileTap={{ scale: 0.95 }}
-              aria-label="Attach file for AI analysis"
+              aria-label="Voice input"
               disabled={isLoading}
             >
-              <Paperclip className="w-5 h-5 text-muted-foreground" />
+              <Mic className="w-[18px] h-[18px]" />
             </motion.button>
-          </>
-        )}
 
-        {/* Voice Input Button - 44px touch target */}
-        <motion.button
-          type="button"
-          className="icon-btn icon-btn-ghost flex-shrink-0"
-          onClick={onVoiceInput}
-          whileTap={{ scale: 0.95 }}
-          aria-label="Use voice to ask a question"
-          disabled={isLoading}
-        >
-          <Mic className="w-5 h-5 text-muted-foreground" />
-        </motion.button>
-        
-        {/* Input Container */}
-        <div className="input-container flex-1 min-w-0">
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={attachedFile ? "Add a message or just send..." : placeholder}
-            className="w-full bg-transparent border-none outline-none text-foreground text-sm py-1"
-            disabled={isLoading}
-          />
-        </div>
-        
-        {/* Refine Prompt Button - 44px touch target */}
-        {onRefinePrompt && value.trim() && !attachedFile && (
-          <motion.button
-            type="button"
-            className="icon-btn icon-btn-ghost flex-shrink-0"
-            onClick={onRefinePrompt}
-            whileTap={{ scale: 0.95 }}
-            aria-label="Improve your question with AI"
-            disabled={isLoading || isRefining}
-            title="Refine your prompt with AI"
-          >
-            <Wand2 className={`w-5 h-5 ${isRefining ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-          </motion.button>
-        )}
-        
-        {/* Send Button - 44px touch target */}
-        <motion.button
-          type="submit"
-          className="icon-btn icon-btn-primary flex-shrink-0"
-          whileTap={{ scale: 0.95 }}
-          disabled={(!value.trim() && !attachedFile) || isLoading}
-          aria-label={attachedFile ? "Analyze attached file" : "Send question"}
-        >
-          {isLoading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
-          ) : (
-            <Send className="w-5 h-5" />
-          )}
-        </motion.button>
-      </form>
+            {onRefinePrompt && value.trim() && !attachedFile && (
+              <motion.button
+                type="button"
+                className="header-icon-btn"
+                onClick={onRefinePrompt}
+                whileTap={{ scale: 0.95 }}
+                aria-label="Refine prompt"
+                disabled={isLoading || isRefining}
+              >
+                <Wand2 className={`w-[18px] h-[18px] ${isRefining ? 'text-primary animate-pulse' : ''}`} />
+              </motion.button>
+            )}
+
+            <motion.button
+              type="submit"
+              className="send-btn"
+              whileTap={{ scale: 0.95 }}
+              disabled={(!value.trim() && !attachedFile) || isLoading}
+              aria-label="Send"
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </motion.button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
