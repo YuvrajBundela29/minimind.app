@@ -731,6 +731,16 @@ const Index = () => {
         const result = await fetchModeExplanation(prompt, modeKey, selectedLanguage);
         
         if (abortControllerRef.current?.signal.aborted) return;
+
+        // Sync credits from server response (server already deducted)
+        if (result.credits_remaining !== null) {
+          syncCreditsFromServer(result.credits_remaining, result.daily_remaining, result.monthly_remaining);
+
+          const remaining = getCredits();
+          if (remaining.total > 0 && remaining.total <= 5) {
+            toast.warning(`⚡ Running low on credits! ${remaining.total} remaining`);
+          }
+        }
         
         setAnswers(prev => ({ ...prev, [modeKey]: result.text }));
         newAnswers[modeKey] = result.text;
@@ -772,7 +782,7 @@ const Index = () => {
       totalQuestions: prev.totalQuestions + 1,
       todayQuestions: prev.todayQuestions + 1
     }));
-  }, [selectedLanguage, fetchModeExplanation]);
+  }, [selectedLanguage, fetchModeExplanation, syncCreditsFromServer, getCredits]);
 
   // Mandatory sign-in gate for early access
   if (isCheckingAuth) {
