@@ -22,7 +22,103 @@ interface FileInfo {
 }
 
 const SUPPORTED_TYPES = {
-...
+  'image/jpeg': { icon: Image, label: 'Image', color: 'from-pink-500 to-rose-500' },
+  'image/png': { icon: Image, label: 'Image', color: 'from-pink-500 to-rose-500' },
+  'image/webp': { icon: Image, label: 'Image', color: 'from-pink-500 to-rose-500' },
+  'application/pdf': { icon: FileText, label: 'PDF', color: 'from-red-500 to-orange-500' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { icon: FileText, label: 'Document', color: 'from-blue-500 to-cyan-500' },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': { icon: Presentation, label: 'Presentation', color: 'from-orange-500 to-yellow-500' },
+  'text/plain': { icon: FileText, label: 'Text', color: 'from-gray-500 to-slate-500' },
+  'text/csv': { icon: Table, label: 'Data', color: 'from-green-500 to-emerald-500' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { icon: FileSpreadsheet, label: 'Spreadsheet', color: 'from-green-500 to-teal-500' },
+};
+
+const ANALYSIS_MODES = [
+  { key: 'beginner', label: 'Simple', description: 'Easy to understand', icon: Sparkles, color: 'from-amber-400 to-orange-500' },
+  { key: 'thinker', label: 'Analytical', description: 'Logical breakdown', icon: Brain, color: 'from-purple-500 to-indigo-600' },
+  { key: 'story', label: 'Narrative', description: 'Story-based', icon: BookOpen, color: 'from-teal-400 to-cyan-500' },
+  { key: 'mastery', label: 'Expert', description: 'Deep technical', icon: GraduationCap, color: 'from-rose-500 to-pink-600' },
+];
+
+const FileAnalysisPage: React.FC = () => {
+  const { getCredits, hasCredits, useCredits, showUpgradePrompt } = useSubscription();
+  const [file, setFile] = useState<FileInfo | null>(null);
+  const [selectedMode, setSelectedMode] = useState<ModeKey>('beginner');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    // Check file size (100MB limit)
+    if (selectedFile.size > 100 * 1024 * 1024) {
+      toast.error('File size must be less than 100MB');
+      return;
+    }
+
+    // Check file type
+    const typeInfo = SUPPORTED_TYPES[selectedFile.type as keyof typeof SUPPORTED_TYPES];
+    if (!typeInfo) {
+      toast.error('Unsupported file type. Please upload images, PDFs, documents, or data files.');
+      return;
+    }
+
+    setUploadProgress(0);
+    setAnalysis(null);
+
+    // Create preview for images
+    if (selectedFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+
+    // Read file content
+    const reader = new FileReader();
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setUploadProgress((event.loaded / event.total) * 100);
+      }
+    };
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setFile({
+        name: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type,
+        content: content.split(',')[1] || content, // Remove data URL prefix if present
+      });
+      setUploadProgress(100);
+      toast.success('File ready for analysis!');
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read file');
+      setUploadProgress(0);
+    };
+
+    if (selectedFile.type.startsWith('image/')) {
+      reader.readAsDataURL(selectedFile);
+    } else {
+      reader.readAsText(selectedFile);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && fileInputRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(droppedFile);
+      fileInputRef.current.files = dt.files;
+      fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }, []);
+
   const analyzeFile = useCallback(async () => {
     if (!file) return;
 

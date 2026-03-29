@@ -22,7 +22,40 @@ interface CompressionMode {
 }
 
 const COMPRESSION_MODES: CompressionMode[] = [
-...
+  {
+    id: 'oneword',
+    label: 'One Word',
+    description: 'Absolute essence',
+    icon: Zap,
+    color: 'from-amber-500 to-orange-600',
+    credits: 1,
+  },
+  {
+    id: 'oneline',
+    label: 'One Line',
+    description: 'Complete in a sentence',
+    icon: Sparkles,
+    color: 'from-violet-500 to-purple-600',
+    credits: 1,
+  },
+  {
+    id: 'bullets',
+    label: 'Bullet Ladder',
+    description: 'Simple → Deep',
+    icon: List,
+    color: 'from-cyan-500 to-blue-600',
+    credits: 2,
+  },
+  {
+    id: 'diagram',
+    label: 'Visual Map',
+    description: 'Structured view',
+    icon: Network,
+    color: 'from-emerald-500 to-teal-600',
+    credits: 3,
+  },
+];
+
 const EkaksharPlusPage: React.FC = () => {
   const { getCredits, hasCredits, useCredits, showUpgradePrompt } = useSubscription();
   const [input, setInput] = useState('');

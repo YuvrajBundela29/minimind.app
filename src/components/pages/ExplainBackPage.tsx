@@ -20,7 +20,54 @@ interface EvaluationResult {
 }
 
 const SAMPLE_TOPICS = [
-...
+  'What is photosynthesis?',
+  'How does the internet work?',
+  'What causes earthquakes?',
+  'How do vaccines protect us?',
+  'What is artificial intelligence?',
+  'How does memory work?',
+];
+
+const ExplainBackPage: React.FC = () => {
+  const { hasCredits, useCredits, showUpgradePrompt } = useSubscription();
+  const { isEarlyAccess } = useEarlyAccess();
+  const [step, setStep] = useState<'topic' | 'learn' | 'explain' | 'feedback'>('topic');
+  const [topic, setTopic] = useState('');
+  const [aiExplanation, setAiExplanation] = useState('');
+  const [userExplanation, setUserExplanation] = useState('');
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGetExplanation = useCallback(async () => {
+    if (!topic.trim()) {
+      toast.error('Please enter a topic');
+      return;
+    }
+
+    if (!hasCredits(2)) {
+      showUpgradePrompt('Explain-It-Back');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await AIService.getExplanation(
+        `Explain this concept clearly and thoroughly so that someone could learn and then explain it back: ${topic}`,
+        'thinker',
+        'en'
+      );
+      
+      useCredits(2, 'explain_back_learn');
+      setAiExplanation(response);
+      setStep('learn');
+    } catch (error) {
+      console.error('Error getting explanation:', error);
+      toast.error('Failed to get explanation');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [topic, hasCredits, useCredits, showUpgradePrompt, isEarlyAccess]);
+
   const handleEvaluate = useCallback(async () => {
     if (!userExplanation.trim()) {
       toast.error('Please write your explanation');
