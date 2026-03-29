@@ -269,6 +269,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
 
       setAvatarUrl(publicUrl);
       setProfile({ ...profile, avatar_url: publicUrl });
+      // Clear preset avatar when uploading custom
+      setPresetAvatar(null);
+      localStorage.removeItem('minimind-preset-avatar');
       toast.success('Profile picture updated!');
     } catch (error) {
       console.error('Error uploading avatar:', error);
