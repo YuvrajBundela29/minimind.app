@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, X, Sparkles } from 'lucide-react';
+import { Check, Lock, X, Sparkles, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Preset avatar emojis
@@ -361,7 +361,7 @@ export const AvatarWithFrame: React.FC<AvatarWithFrameProps> = ({
             <span className={s.emoji}>{presetAvatar}</span>
           ) : (
             <div className={cn('w-full h-full rounded-full bg-gradient-to-br flex items-center justify-center', frame.gradient)}>
-              <span className="text-white font-bold" style={{ fontSize: size === 'lg' ? '2rem' : size === 'md' ? '1.25rem' : '0.75rem' }}>?</span>
+              <User className="text-white" style={{ width: size === 'lg' ? '2.5rem' : size === 'md' ? '1.5rem' : '1rem', height: size === 'lg' ? '2.5rem' : size === 'md' ? '1.5rem' : '1rem' }} />
             </div>
           )}
         </div>

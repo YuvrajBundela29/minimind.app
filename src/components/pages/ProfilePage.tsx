@@ -208,8 +208,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const handleSelectPresetAvatar = (emoji: string) => {
     setPresetAvatar(emoji);
     localStorage.setItem('minimind-preset-avatar', emoji);
-    // Clear uploaded avatar when selecting preset
-    setAvatarUrl(null);
     toast.success('Avatar updated!');
   };
 
