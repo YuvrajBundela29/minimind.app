@@ -330,31 +330,28 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    let userId: string | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
       );
+
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claims, error: authError } = await supabaseClient.auth.getClaims(token);
+      const claimSub = claims?.claims?.sub;
+
+      if (!authError && typeof claimSub === "string" && claimSub.length > 0) {
+        userId = claimSub;
+        console.log(`Processing request for authenticated user: ${userId.substring(0, 8)}...`);
+      } else {
+        console.warn("Invalid or anonymous JWT provided; proceeding as guest user.");
+      }
+    } else {
+      console.warn("No Authorization header found; proceeding as guest user.");
     }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: authError } = await supabaseClient.auth.getClaims(token);
-    
-    if (authError || !claims?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const userId = claims.claims.sub;
-    console.log(`Processing request for authenticated user: ${userId.substring(0, 8)}...`);
 
     let requestBody: unknown;
     try {
@@ -396,14 +393,16 @@ serve(async (req) => {
     // --- SERVER-SIDE CREDIT CHECK & DEDUCTION ---
     const creditCost = getCreditCost(type, mode);
     
-    // Create admin client for credit operations (bypasses RLS)
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Create admin client for credit operations (bypasses RLS) only for authenticated users
+    const adminClient = userId
+      ? createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        )
+      : null;
 
     // Pre-check credits (only for non-free operations)
-    if (creditCost > 0) {
+    if (creditCost > 0 && userId && adminClient) {
       try {
         const { data: preCheck, error: preCheckError } = await adminClient.rpc('deduct_user_credit', {
           p_user_id: userId,
@@ -662,7 +661,8 @@ FORMAT:
           { role: "user", content: userMessage },
         ];
 
-    console.log(`User ${userId} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
+    const userLabel = userId ?? "guest";
+    console.log(`User ${userLabel} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -691,7 +691,7 @@ FORMAT:
         );
       }
       const errorText = await response.text();
-      console.error(`User ${userId} - AI gateway error:`, response.status, errorText);
+      console.error(`User ${userLabel} - AI gateway error:`, response.status, errorText);
       return new Response(
         JSON.stringify({ error: "AI service temporarily unavailable" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -706,7 +706,7 @@ FORMAT:
     let dailyRemaining: number | null = null;
     let monthlyRemaining: number | null = null;
 
-    if (creditCost > 0) {
+    if (creditCost > 0 && userId && adminClient) {
       try {
         const { data: deductResult, error: deductError } = await adminClient.rpc('deduct_user_credit', {
           p_user_id: userId,
@@ -719,7 +719,7 @@ FORMAT:
           creditsRemaining = deductResult.credits_remaining ?? null;
           dailyRemaining = deductResult.daily_remaining ?? null;
           monthlyRemaining = deductResult.monthly_remaining ?? null;
-          console.log(`User ${userId} - Deducted ${creditCost} credits. Remaining: ${creditsRemaining}`);
+          console.log(`User ${userLabel} - Deducted ${creditCost} credits. Remaining: ${creditsRemaining}`);
         }
       } catch (e) {
         console.error("Credit deduction exception:", e);
