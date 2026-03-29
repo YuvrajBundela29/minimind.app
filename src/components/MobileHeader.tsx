@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import minimindLogo from '@/assets/minimind-logo.png';
 import { Menu, User, SquarePen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
