@@ -666,7 +666,7 @@ const Index = () => {
           {currentPage === 'notes' && (
             <Suspense fallback={<PageLoadingFallback />}>
               <motion.div key="notes" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-                <NotesPage />
+                <NotesPage onNavigateHome={() => setCurrentPage('home')} />
               </motion.div>
             </Suspense>
           )}
