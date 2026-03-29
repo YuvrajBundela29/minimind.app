@@ -25,6 +25,8 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
   onNavigateToSubscription,
 }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [presetAvatar, setPresetAvatar] = useState<string | null>(null);
+  const [frameId, setFrameId] = useState('default');
 
   useEffect(() => {
     const fetchAvatar = async () => {
@@ -41,13 +43,34 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
       }
     };
 
+    const loadCustomization = () => {
+      const savedFrame = localStorage.getItem('minimind-avatar-frame');
+      const savedPreset = localStorage.getItem('minimind-preset-avatar');
+      if (savedFrame) setFrameId(savedFrame);
+      if (savedPreset) setPresetAvatar(savedPreset);
+    };
+
     fetchAvatar();
+    loadCustomization();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       fetchAvatar();
+      loadCustomization();
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for storage changes (when user updates avatar in profile)
+    const handleStorage = () => {
+      const savedFrame = localStorage.getItem('minimind-avatar-frame');
+      const savedPreset = localStorage.getItem('minimind-preset-avatar');
+      if (savedFrame) setFrameId(savedFrame);
+      setPresetAvatar(savedPreset);
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   return (
