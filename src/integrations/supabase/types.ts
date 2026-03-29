@@ -74,6 +74,54 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referred_id: string
+          referred_rewarded: boolean
+          referrer_id: string
+          referrer_rewarded: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referred_id: string
+          referred_rewarded?: boolean
+          referrer_id: string
+          referrer_rewarded?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referred_id?: string
+          referred_rewarded?: boolean
+          referrer_id?: string
+          referrer_rewarded?: boolean
+        }
+        Relationships: []
+      }
       saved_notes: {
         Row: {
           created_at: string
@@ -401,10 +449,12 @@ export type Database = {
       }
     }
     Functions: {
+      apply_referral_code: { Args: { p_code: string }; Returns: Json }
       deduct_user_credit: {
         Args: { p_cost: number; p_user_id: string }
         Returns: Json
       }
+      get_or_create_referral_code: { Args: never; Returns: string }
       get_user_subscription: {
         Args: never
         Returns: {
