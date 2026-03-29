@@ -37,6 +37,9 @@ const FullscreenMode = React.lazy(() => import('@/components/FullscreenMode'));
 const OnboardingGuide = React.lazy(() => import('@/components/OnboardingGuide'));
 const PurposeLensPage = React.lazy(() => import('@/components/pages/PurposeLensPage'));
 const NotesPage = React.lazy(() => import('@/components/pages/NotesPage'));
+const TermsOfServicePage = React.lazy(() => import('@/components/pages/TermsOfServicePage'));
+const PrivacyPolicyPage = React.lazy(() => import('@/components/pages/PrivacyPolicyPage'));
+const RefundPolicyPage = React.lazy(() => import('@/components/pages/RefundPolicyPage'));
 
 // Types for history
 export interface HistoryItem {
@@ -78,7 +81,7 @@ const Index = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   
   // State Management
-  const [currentPage, setCurrentPage] = useState<NavigationId | 'auth'>('home');
+  const [currentPage, setCurrentPage] = useState<NavigationId | 'auth' | 'terms' | 'privacy' | 'refund'>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>('en');
@@ -860,7 +863,7 @@ const Index = () => {
           {currentPage === 'settings' && (
             <Suspense fallback={<PageLoadingFallback />}>
               <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <SettingsPage theme={theme} onToggleTheme={toggleTheme} selectedLanguage={selectedLanguage} onLanguageSelect={setSelectedLanguage} onClearHistory={handleClearHistory} stats={stats} />
+                <SettingsPage theme={theme} onToggleTheme={toggleTheme} selectedLanguage={selectedLanguage} onLanguageSelect={setSelectedLanguage} onClearHistory={handleClearHistory} onNavigateToLegal={(page) => setCurrentPage(page)} stats={stats} />
               </motion.div>
             </Suspense>
           )}
@@ -905,6 +908,30 @@ const Index = () => {
             <Suspense fallback={<PageLoadingFallback />}>
               <motion.div key="notes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <NotesPage />
+              </motion.div>
+            </Suspense>
+          )}
+          
+          {currentPage === 'terms' && (
+            <Suspense fallback={<PageLoadingFallback />}>
+              <motion.div key="terms" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <TermsOfServicePage onBack={() => setCurrentPage('settings')} />
+              </motion.div>
+            </Suspense>
+          )}
+          
+          {currentPage === 'privacy' && (
+            <Suspense fallback={<PageLoadingFallback />}>
+              <motion.div key="privacy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <PrivacyPolicyPage onBack={() => setCurrentPage('settings')} />
+              </motion.div>
+            </Suspense>
+          )}
+          
+          {currentPage === 'refund' && (
+            <Suspense fallback={<PageLoadingFallback />}>
+              <motion.div key="refund" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <RefundPolicyPage onBack={() => setCurrentPage('settings')} />
               </motion.div>
             </Suspense>
           )}
