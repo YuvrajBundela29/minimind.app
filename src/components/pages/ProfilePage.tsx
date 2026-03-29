@@ -196,6 +196,25 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   };
 
   const handleAvatarClick = () => {
+    setShowAvatarCustomizer(true);
+  };
+
+  const handleSelectFrame = (frameId: string) => {
+    setSelectedFrameId(frameId);
+    localStorage.setItem('minimind-avatar-frame', frameId);
+    toast.success('Frame updated!');
+  };
+
+  const handleSelectPresetAvatar = (emoji: string) => {
+    setPresetAvatar(emoji);
+    localStorage.setItem('minimind-preset-avatar', emoji);
+    // Clear uploaded avatar when selecting preset
+    setAvatarUrl(null);
+    toast.success('Avatar updated!');
+  };
+
+  const handleUploadFromCustomizer = () => {
+    setShowAvatarCustomizer(false);
     fileInputRef.current?.click();
   };
 
