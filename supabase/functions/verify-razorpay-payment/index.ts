@@ -68,6 +68,33 @@ serve(async (req) => {
       );
     }
 
+    // Fetch the original order from Razorpay to validate tier matches
+    const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID");
+    const orderResponse = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+      headers: {
+        "Authorization": "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`),
+      },
+    });
+
+    if (!orderResponse.ok) {
+      console.error("Failed to fetch Razorpay order for validation");
+      return new Response(
+        JSON.stringify({ error: "Failed to validate order" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const order = await orderResponse.json();
+
+    // Validate that the tier and planType match what was stored in the original order
+    if (order.notes?.tier !== tier || order.notes?.plan_type !== planType) {
+      console.error(`Tier mismatch: order has ${order.notes?.tier}/${order.notes?.plan_type}, request has ${tier}/${planType}`);
+      return new Response(
+        JSON.stringify({ error: "Tier mismatch with original order" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Calculate subscription period
     const now = new Date();
     const periodEnd = new Date(now);
@@ -86,8 +113,8 @@ serve(async (req) => {
     const { error: updateError } = await adminSupabase
       .from("user_subscriptions")
       .update({
-        tier,
-        plan_type: planType,
+        tier: order.notes.tier,
+        plan_type: order.notes.plan_type,
         status: 'active',
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
