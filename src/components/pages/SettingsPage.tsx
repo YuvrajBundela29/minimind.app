@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Moon, Sun, Globe, Trash2, Info, Heart, Search, ChevronDown } from 'lucide-react';
+import { Moon, Sun, Globe, Trash2, Info, Heart, Search, ChevronDown, FileText, Shield, ReceiptText, ChevronRight } from 'lucide-react';
 import { languages, LanguageKey, ModeKey } from '@/config/minimind';
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ interface SettingsPageProps {
   selectedLanguage: LanguageKey;
   onLanguageSelect: (lang: LanguageKey) => void;
   onClearHistory: () => void;
+  onNavigateToLegal?: (page: 'terms' | 'privacy' | 'refund') => void;
   stats: {
     totalQuestions: number;
     todayQuestions: number;
@@ -31,6 +32,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   selectedLanguage,
   onLanguageSelect,
   onClearHistory,
+  onNavigateToLegal,
   stats,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -214,6 +216,43 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="text-2xl font-bold text-foreground">{stats.todayQuestions}</div>
             <div className="text-xs text-muted-foreground">Today</div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Legal & Policies */}
+      <motion.div
+        className="mode-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <FileText className="w-6 h-6 text-primary" />
+          <div>
+            <h3 className="font-medium text-foreground">Legal & Policies</h3>
+            <p className="text-xs text-muted-foreground">Terms, privacy & refund policies</p>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          {[
+            { key: 'terms' as const, label: 'Terms of Service', icon: FileText },
+            { key: 'privacy' as const, label: 'Privacy Policy', icon: Shield },
+            { key: 'refund' as const, label: 'Refund & Cancellation Policy', icon: ReceiptText },
+          ].map((item) => (
+            <motion.button
+              key={item.key}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+              onClick={() => onNavigateToLegal?.(item.key)}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex items-center gap-3">
+                <item.icon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{item.label}</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </motion.button>
+          ))}
         </div>
       </motion.div>
 
