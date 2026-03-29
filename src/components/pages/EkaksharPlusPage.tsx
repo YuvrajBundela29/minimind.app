@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useSubscription, CREDIT_COSTS } from '@/contexts/SubscriptionContext';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-import { supabase } from '@/integrations/supabase/client';
+import AIService from '@/services/aiService';
 
 interface CompressionMode {
   id: string;
@@ -92,21 +92,17 @@ const EkaksharPlusPage: React.FC = () => {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          prompt: input,
-          type: modeId,
-          language: 'en',
-        },
+      const data = await AIService.invokeChat({
+        prompt: input,
+        type: modeId,
+        language: 'en',
       });
 
-      if (error) throw error;
-
       useCredits(mode.credits, `ekakshar_${modeId}`);
-      setResult(data.response);
+      setResult((data.response as string) || 'Unable to generate response. Please try again.');
     } catch (error) {
       console.error('Compression error:', error);
-      toast.error('Failed to process. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to process. Please try again.');
     } finally {
       setIsProcessing(false);
     }

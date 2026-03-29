@@ -13,7 +13,6 @@ import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import AIService from '@/services/aiService';
-import { supabase } from '@/integrations/supabase/client';
 
 interface EvaluationResult {
   score: number;
@@ -82,20 +81,16 @@ const ExplainBackPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          type: 'explain_back_evaluate',
-          prompt: userExplanation,
-          originalConcept: aiExplanation,
-          language: 'en',
-        },
+      const data = await AIService.invokeChat({
+        type: 'explain_back_evaluate',
+        prompt: userExplanation,
+        originalConcept: aiExplanation,
+        language: 'en',
       });
-
-      if (error) throw error;
 
       useCredits(3, 'explain_back_evaluate');
       
-      const responseText = data.response;
+      const responseText = (data.response as string) || 'Unable to evaluate right now. Please try again.';
       const scoreMatch = responseText.match(/(\d+)\s*\/\s*10/);
       const score = scoreMatch ? parseInt(scoreMatch[1]) * 10 : 70;
 
@@ -107,7 +102,7 @@ const ExplainBackPage: React.FC = () => {
       setStep('feedback');
     } catch (error) {
       console.error('Error evaluating:', error);
-      toast.error('Failed to evaluate. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to evaluate. Please try again.');
     } finally {
       setIsLoading(false);
     }

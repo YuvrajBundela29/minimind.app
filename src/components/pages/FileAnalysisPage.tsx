@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { useSubscription, CREDIT_COSTS } from '@/contexts/SubscriptionContext';
 import { modes, ModeKey } from '@/config/minimind';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-import { supabase } from '@/integrations/supabase/client';
+import AIService from '@/services/aiService';
 
 interface FileInfo {
   name: string;
@@ -130,23 +130,19 @@ const FileAnalysisPage: React.FC = () => {
 
     setIsAnalyzing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          type: 'file_analysis',
-          prompt: `Analyze "${file.name}": ${file.content?.substring(0, 4500)}`,
-          analysisMode: selectedMode,
-          language: 'en',
-        },
+      const data = await AIService.invokeChat({
+        type: 'file_analysis',
+        prompt: `Analyze "${file.name}": ${file.content?.substring(0, 4500)}`,
+        analysisMode: selectedMode,
+        language: 'en',
       });
 
-      if (error) throw error;
-
       useCredits(cost, 'file_analysis');
-      setAnalysis(data.response);
+      setAnalysis((data.response as string) || 'Unable to analyze this file right now. Please try again.');
       toast.success('Analysis complete!');
     } catch (error) {
       console.error('Analysis error:', error);
-      toast.error('Failed to analyze file. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to analyze file. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }

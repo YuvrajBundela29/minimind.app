@@ -15,7 +15,7 @@ import SkeletonLoader from '../SkeletonLoader';
 import { downloadPDF, sharePDF } from '@/utils/pdfGenerator';
 import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import { useSubscription, CREDIT_COSTS } from '@/contexts/SubscriptionContext';
-import { supabase } from '@/integrations/supabase/client';
+import AIService from '@/services/aiService';
 
 interface EkaksharPageProps {
   language: LanguageKey;
@@ -55,11 +55,16 @@ const EkaksharPage: React.FC<EkaksharPageProps> = ({ language }) => {
     try {
       const modes = ['oneword', 'oneline', 'bullets'];
       const promises = modes.map(async (modeId) => {
-        const { data, error } = await supabase.functions.invoke('chat', {
-          body: { prompt: q, type: modeId, language },
+        const data = await AIService.invokeChat({
+          prompt: q,
+          type: modeId,
+          language,
         });
-        if (error) throw error;
-        return { modeId, response: data.response };
+
+        return {
+          modeId,
+          response: (data.response as string) || 'Unable to generate response. Please try again.',
+        };
       });
 
       const responses = await Promise.all(promises);
@@ -79,7 +84,7 @@ const EkaksharPage: React.FC<EkaksharPageProps> = ({ language }) => {
       if (!question) setInput('');
     } catch (error) {
       console.error('Error getting answer:', error);
-      toast.error('Failed to compress. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to compress. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -94,15 +99,19 @@ const EkaksharPage: React.FC<EkaksharPageProps> = ({ language }) => {
     setIsProcessing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt: input || 'Generate mind map for the previous topic', type: 'visual_map', language },
+      const data = await AIService.invokeChat({
+        prompt: input || 'Generate mind map for the previous topic',
+        type: 'visual_map',
+        language,
       });
 
-      if (error) throw error;
-      setResults(prev => ({ ...prev, visual_map: data.response }));
+      setResults(prev => ({
+        ...prev,
+        visual_map: (data.response as string) || 'Unable to generate visual map. Please try again.',
+      }));
     } catch (error) {
       console.error('Mind map error:', error);
-      toast.error('Failed to generate mind map.');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate mind map.');
     } finally {
       setIsProcessing(false);
     }

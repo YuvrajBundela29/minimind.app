@@ -7,88 +7,84 @@ export interface PurposeLensOptions {
 }
 
 export class AIService {
+  private static isAuthError(error: unknown): boolean {
+    const candidate = error as { message?: string; status?: number; context?: { status?: number } };
+    const status = candidate?.context?.status ?? candidate?.status;
+    const message = (candidate?.message || '').toLowerCase();
+
+    return (
+      status === 401 ||
+      message.includes('401') ||
+      message.includes('authentication required') ||
+      message.includes('invalid jwt') ||
+      message.includes('bad_jwt')
+    );
+  }
+
+  static async invokeChat(body: Record<string, unknown>): Promise<{ response?: string; [key: string]: unknown }> {
+    const invoke = () => supabase.functions.invoke('chat', { body });
+
+    let { data, error } = await invoke();
+
+    if (error && AIService.isAuthError(error)) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        if (sessionData.session) {
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError) {
+            const retried = await invoke();
+            data = retried.data;
+            error = retried.error;
+          }
+        }
+      } catch (refreshError) {
+        console.error('Session refresh failed:', refreshError);
+      }
+    }
+
+    if (error) {
+      console.error('AI Service error:', error);
+      if (AIService.isAuthError(error)) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+      throw new Error(error.message || 'Failed to process request');
+    }
+
+    return (data ?? {}) as { response?: string; [key: string]: unknown };
+  }
+
   static async getExplanation(
-    prompt: string, 
-    mode: string, 
+    prompt: string,
+    mode: string,
     language: string,
     lensOptions?: PurposeLensOptions
   ): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { 
-          prompt, 
-          mode, 
-          language, 
-          type: 'explain',
-          purposeLens: lensOptions?.purposeLens || 'general',
-          customLensPrompt: lensOptions?.customLensPrompt
-        }
-      });
+    const data = await AIService.invokeChat({
+      prompt,
+      mode,
+      language,
+      type: 'explain',
+      purposeLens: lensOptions?.purposeLens || 'general',
+      customLensPrompt: lensOptions?.customLensPrompt,
+    });
 
-      if (error) {
-        console.error('AI Service error:', error);
-        throw new Error(error.message || 'Failed to get explanation');
-      }
-
-      return data?.response || 'Unable to generate response. Please try again.';
-    } catch (error) {
-      console.error('Error in getExplanation:', error);
-      throw error;
-    }
+    return (data.response as string) || 'Unable to generate response. Please try again.';
   }
 
   static async getEkaksharAnswer(prompt: string, language: string): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt, language, type: 'ekakshar' }
-      });
-
-      if (error) {
-        console.error('AI Service error:', error);
-        throw new Error(error.message || 'Failed to get Ekakshar answer');
-      }
-
-      return data?.response || 'Unable to generate response. Please try again.';
-    } catch (error) {
-      console.error('Error in getEkaksharAnswer:', error);
-      throw error;
-    }
+    const data = await AIService.invokeChat({ prompt, language, type: 'ekakshar' });
+    return (data.response as string) || 'Unable to generate response. Please try again.';
   }
 
   static async getOneWordAnswer(prompt: string, language: string): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt, language, type: 'oneword' }
-      });
-
-      if (error) {
-        console.error('AI Service error:', error);
-        throw new Error(error.message || 'Failed to get one-word answer');
-      }
-
-      return data?.response || 'Unknown';
-    } catch (error) {
-      console.error('Error in getOneWordAnswer:', error);
-      throw error;
-    }
+    const data = await AIService.invokeChat({ prompt, language, type: 'oneword' });
+    return (data.response as string) || 'Unknown';
   }
 
   static async refinePrompt(prompt: string, language: string): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt, language, type: 'refine' }
-      });
-
-      if (error) {
-        console.error('AI Service error:', error);
-        throw new Error(error.message || 'Failed to refine prompt');
-      }
-
-      return data?.response || prompt;
-    } catch (error) {
-      console.error('Error in refinePrompt:', error);
-      throw error;
-    }
+    const data = await AIService.invokeChat({ prompt, language, type: 'refine' });
+    return (data.response as string) || prompt;
   }
 
   static async continueConversation(
@@ -97,28 +93,16 @@ export class AIService {
     language: string,
     lensOptions?: PurposeLensOptions
   ): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { 
-          messages, 
-          mode, 
-          language, 
-          type: 'continue',
-          purposeLens: lensOptions?.purposeLens || 'general',
-          customLensPrompt: lensOptions?.customLensPrompt
-        }
-      });
+    const data = await AIService.invokeChat({
+      messages,
+      mode,
+      language,
+      type: 'continue',
+      purposeLens: lensOptions?.purposeLens || 'general',
+      customLensPrompt: lensOptions?.customLensPrompt,
+    });
 
-      if (error) {
-        console.error('AI Service error:', error);
-        throw new Error(error.message || 'Failed to continue conversation');
-      }
-
-      return data?.response || 'Unable to continue conversation. Please try again.';
-    } catch (error) {
-      console.error('Error in continueConversation:', error);
-      throw error;
-    }
+    return (data.response as string) || 'Unable to continue conversation. Please try again.';
   }
 }
 
