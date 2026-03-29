@@ -13,7 +13,6 @@ import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import AIService from '@/services/aiService';
-import { supabase } from '@/integrations/supabase/client';
 
 interface EvaluationResult {
   score: number;
@@ -21,54 +20,7 @@ interface EvaluationResult {
 }
 
 const SAMPLE_TOPICS = [
-  'What is photosynthesis?',
-  'How does the internet work?',
-  'What causes earthquakes?',
-  'How do vaccines protect us?',
-  'What is artificial intelligence?',
-  'How does memory work?',
-];
-
-const ExplainBackPage: React.FC = () => {
-  const { hasCredits, useCredits, showUpgradePrompt } = useSubscription();
-  const { isEarlyAccess } = useEarlyAccess();
-  const [step, setStep] = useState<'topic' | 'learn' | 'explain' | 'feedback'>('topic');
-  const [topic, setTopic] = useState('');
-  const [aiExplanation, setAiExplanation] = useState('');
-  const [userExplanation, setUserExplanation] = useState('');
-  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleGetExplanation = useCallback(async () => {
-    if (!topic.trim()) {
-      toast.error('Please enter a topic');
-      return;
-    }
-
-    if (!hasCredits(2)) {
-      showUpgradePrompt('Explain-It-Back');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await AIService.getExplanation(
-        `Explain this concept clearly and thoroughly so that someone could learn and then explain it back: ${topic}`,
-        'thinker',
-        'en'
-      );
-      
-      useCredits(2, 'explain_back_learn');
-      setAiExplanation(response);
-      setStep('learn');
-    } catch (error) {
-      console.error('Error getting explanation:', error);
-      toast.error('Failed to get explanation');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [topic, hasCredits, useCredits, showUpgradePrompt, isEarlyAccess]);
-
+...
   const handleEvaluate = useCallback(async () => {
     if (!userExplanation.trim()) {
       toast.error('Please write your explanation');
@@ -82,20 +34,16 @@ const ExplainBackPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          type: 'explain_back_evaluate',
-          prompt: userExplanation,
-          originalConcept: aiExplanation,
-          language: 'en',
-        },
+      const data = await AIService.invokeChat({
+        type: 'explain_back_evaluate',
+        prompt: userExplanation,
+        originalConcept: aiExplanation,
+        language: 'en',
       });
-
-      if (error) throw error;
 
       useCredits(3, 'explain_back_evaluate');
       
-      const responseText = data.response;
+      const responseText = (data.response as string) || 'Unable to evaluate right now. Please try again.';
       const scoreMatch = responseText.match(/(\d+)\s*\/\s*10/);
       const score = scoreMatch ? parseInt(scoreMatch[1]) * 10 : 70;
 
@@ -107,7 +55,7 @@ const ExplainBackPage: React.FC = () => {
       setStep('feedback');
     } catch (error) {
       console.error('Error evaluating:', error);
-      toast.error('Failed to evaluate. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to evaluate. Please try again.');
     } finally {
       setIsLoading(false);
     }

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useSubscription, CREDIT_COSTS } from '@/contexts/SubscriptionContext';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-import { supabase } from '@/integrations/supabase/client';
+import AIService from '@/services/aiService';
 
 interface CompressionMode {
   id: string;
@@ -22,40 +22,7 @@ interface CompressionMode {
 }
 
 const COMPRESSION_MODES: CompressionMode[] = [
-  {
-    id: 'oneword',
-    label: 'One Word',
-    description: 'Absolute essence',
-    icon: Zap,
-    color: 'from-amber-500 to-orange-600',
-    credits: 1,
-  },
-  {
-    id: 'oneline',
-    label: 'One Line',
-    description: 'Complete in a sentence',
-    icon: Sparkles,
-    color: 'from-violet-500 to-purple-600',
-    credits: 1,
-  },
-  {
-    id: 'bullets',
-    label: 'Bullet Ladder',
-    description: 'Simple → Deep',
-    icon: List,
-    color: 'from-cyan-500 to-blue-600',
-    credits: 2,
-  },
-  {
-    id: 'diagram',
-    label: 'Visual Map',
-    description: 'Structured view',
-    icon: Network,
-    color: 'from-emerald-500 to-teal-600',
-    credits: 3,
-  },
-];
-
+...
 const EkaksharPlusPage: React.FC = () => {
   const { getCredits, hasCredits, useCredits, showUpgradePrompt } = useSubscription();
   const [input, setInput] = useState('');
@@ -92,21 +59,17 @@ const EkaksharPlusPage: React.FC = () => {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          prompt: input,
-          type: modeId,
-          language: 'en',
-        },
+      const data = await AIService.invokeChat({
+        prompt: input,
+        type: modeId,
+        language: 'en',
       });
 
-      if (error) throw error;
-
       useCredits(mode.credits, `ekakshar_${modeId}`);
-      setResult(data.response);
+      setResult((data.response as string) || 'Unable to generate response. Please try again.');
     } catch (error) {
       console.error('Compression error:', error);
-      toast.error('Failed to process. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to process. Please try again.');
     } finally {
       setIsProcessing(false);
     }
