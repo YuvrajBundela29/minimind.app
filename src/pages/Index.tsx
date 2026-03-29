@@ -612,23 +612,25 @@ const Index = () => {
     setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'user', content: message }] }));
     setLoadingModes(prev => ({ ...prev, [modeKey]: true }));
     try {
-      const response = await AIService.continueConversation(
+      const result = await AIService.continueConversation(
         [...chatHistories[modeKey], { role: 'user', content: message }], 
         modeKey, 
         selectedLanguage,
         { purposeLens, customLensPrompt: purposeLens === 'custom' ? customLensPrompt : undefined }
       );
       
-      // Deduct credits after successful response
-      await useCredits(cost, modeKey);
+      // Sync credits from server (server already deducted)
+      if (result.credits_remaining !== null) {
+        syncCreditsFromServer(result.credits_remaining, result.daily_remaining, result.monthly_remaining);
+      }
       
       const remaining = getCredits();
       if (remaining.total > 0 && remaining.total <= 5) {
         toast.warning(`⚡ Running low on credits! ${remaining.total} remaining`);
       }
       
-      setAnswers(prev => ({ ...prev, [modeKey]: response }));
-      setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }] }));
+      setAnswers(prev => ({ ...prev, [modeKey]: result.response }));
+      setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.response }] }));
     } catch (error) { toast.error('Failed to get response'); }
     finally { setLoadingModes(prev => ({ ...prev, [modeKey]: false })); }
     setChatInputs(prev => ({ ...prev, [modeKey]: '' }));
@@ -726,22 +728,22 @@ const Index = () => {
       const modeKey = MODE_PRIORITY[i];
       
       try {
-        const response = await fetchModeExplanation(prompt, modeKey, selectedLanguage);
+        const result = await fetchModeExplanation(prompt, modeKey, selectedLanguage);
         
         if (abortControllerRef.current?.signal.aborted) return;
         
-        setAnswers(prev => ({ ...prev, [modeKey]: response }));
-        newAnswers[modeKey] = response;
+        setAnswers(prev => ({ ...prev, [modeKey]: result.text }));
+        newAnswers[modeKey] = result.text;
         setChatHistories(prev => ({
           ...prev,
-          [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
+          [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.text }]
         }));
         
         logUsage({
           queryText: prompt,
           mode: modeKey,
           language: selectedLanguage,
-          responseLength: response.length,
+          responseLength: result.text.length,
         });
       } catch (error: any) {
         if (error.name === 'AbortError') return;

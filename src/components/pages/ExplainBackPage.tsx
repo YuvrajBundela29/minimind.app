@@ -58,7 +58,7 @@ const ExplainBackPage: React.FC = () => {
       );
       
       useCredits(2, 'explain_back_learn');
-      setAiExplanation(response);
+      setAiExplanation(result.response);
       setStep('learn');
     } catch (error) {
       console.error('Error getting explanation:', error);
