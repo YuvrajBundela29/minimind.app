@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Trophy, Flame, Calendar, Edit2, Save, X, LogOut,
-  TrendingUp, Brain, BarChart3, Camera, Upload
+  TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModeKey, modes } from '@/config/minimind';
+import { AvatarCustomizer, AvatarWithFrame } from '@/components/AvatarCustomizer';
 
 const displayNameSchema = z.string()
   .max(100, 'Display name must be less than 100 characters')
@@ -54,6 +55,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
+  const [selectedFrameId, setSelectedFrameId] = useState('default');
+  const [presetAvatar, setPresetAvatar] = useState<string | null>(null);
+  const [streakData, setStreakData] = useState({ currentStreak: 0 });
 
   useEffect(() => {
     fetchUserData();
