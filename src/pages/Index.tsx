@@ -440,13 +440,15 @@ const Index = () => {
       
       // Start this mode
       try {
-        const response = await fetchModeExplanation(questionText, modeKey, selectedLanguage);
+        const result = await fetchModeExplanation(questionText, modeKey, selectedLanguage);
         
         // Check if aborted
         if (abortControllerRef.current?.signal.aborted) return;
         
-        // Deduct credits after successful response
-        await useCredits(cost, modeKey);
+        // Sync credits from server response (server already deducted)
+        if (result.credits_remaining !== null) {
+          syncCreditsFromServer(result.credits_remaining, result.daily_remaining, result.monthly_remaining);
+        }
         
         // Check milestone notifications
         const remaining = getCredits();
@@ -471,11 +473,11 @@ const Index = () => {
           }
         }
         
-        setAnswers(prev => ({ ...prev, [modeKey]: response }));
-        newAnswers[modeKey] = response;
+        setAnswers(prev => ({ ...prev, [modeKey]: result.text }));
+        newAnswers[modeKey] = result.text;
         setChatHistories(prev => ({
           ...prev,
-          [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
+          [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.text }]
         }));
         
         // Fire-and-forget usage log
@@ -483,7 +485,7 @@ const Index = () => {
           queryText: questionText,
           mode: modeKey,
           language: selectedLanguage,
-          responseLength: response.length,
+          responseLength: result.text.length,
         });
       } catch (error: any) {
         if (error.name === 'AbortError') return;
