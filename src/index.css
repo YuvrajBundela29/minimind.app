@@ -260,17 +260,59 @@
     @apply w-full;
   }
 
-  /* Input field — clean rounded rectangle */
-  .input-field-container {
-    @apply rounded-xl border border-border bg-card transition-all;
+  /* Premium input container — ChatGPT/Claude style */
+  .premium-input-container {
+    @apply rounded-2xl border border-border bg-card transition-all;
+    box-shadow: 0 1px 6px hsl(0 0% 0% / 0.06);
   }
 
-  .input-field-container:focus-within {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+  .premium-input-container:focus-within {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.1), 0 2px 8px hsl(0 0% 0% / 0.06);
   }
 
-  /* Send button — circular primary */
+  .premium-textarea {
+    @apply w-full bg-transparent border-none outline-none text-foreground text-sm resize-none;
+    padding: 14px 16px 4px 16px;
+    min-height: 44px;
+    max-height: 160px;
+    line-height: 1.5;
+  }
+
+  .premium-textarea::placeholder {
+    @apply text-muted-foreground/60;
+  }
+
+  /* Input action buttons — subtle ghost style */
+  .input-action-btn {
+    @apply flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors;
+  }
+
+  .input-action-btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  /* Premium send button */
+  .send-btn-premium {
+    @apply flex items-center justify-center w-8 h-8 rounded-lg transition-all;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .send-btn-active {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  .send-btn-inactive {
+    @apply bg-muted text-muted-foreground opacity-50 cursor-not-allowed;
+  }
+
+  .send-btn-premium:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  /* Legacy send-btn for other usages */
   .send-btn {
     @apply flex items-center justify-center w-9 h-9 rounded-full transition-all;
     background: var(--gradient-primary);
