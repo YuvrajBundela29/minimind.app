@@ -334,9 +334,9 @@ const EkaksharPage: React.FC<EkaksharPageProps> = ({ language }) => {
                 <button
                   onClick={handleGenerateMindMap}
                   disabled={isProcessing}
-                  className="w-full p-4 rounded-xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all flex items-center justify-center gap-3"
+                  className="w-full p-4 rounded-xl border border-border bg-muted/40 hover:bg-muted transition-all flex items-center justify-center gap-3"
                 >
-                  <Network className="w-5 h-5 text-emerald-500" />
+                  <Network className="w-5 h-5 text-primary" />
                   <span className="font-medium text-foreground">Generate Mind Map</span>
                 </button>
               </motion.div>
@@ -345,29 +345,42 @@ const EkaksharPage: React.FC<EkaksharPageProps> = ({ language }) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className="p-5 bg-card border-emerald-500/20 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-emerald-500/10">
-                        <Network className="w-4 h-4 text-emerald-500" />
+                <Card className="p-4 bg-card border-border shadow-sm">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Network className="w-4 h-4 text-primary" />
                       </div>
-                      <span className="font-semibold text-foreground text-sm">Mind Map</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground text-sm">Mind Map</p>
+                        <p className="text-[11px] text-muted-foreground">Scroll to view full map</p>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleCopy(results.visual_map)}
                       className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      aria-label="Copy mind map"
                     >
                       <Copy className="w-4 h-4 text-muted-foreground" />
                     </button>
                   </div>
-                  <div className="p-4 bg-muted/50 rounded-xl overflow-x-auto -mx-1">
-                    <pre className="whitespace-pre text-xs font-mono text-foreground min-w-max leading-relaxed">
-                      {results.visual_map}
-                    </pre>
+
+                  <div className="rounded-xl border border-border bg-muted/40">
+                    <div className="max-h-[54vh] overflow-auto p-3 sm:p-4">
+                      {/[┌┐└┘│─├┤┬┴►←→]/.test(results.visual_map) ? (
+                        <pre className="whitespace-pre text-[11px] sm:text-xs font-mono text-foreground min-w-max leading-relaxed">
+                          {results.visual_map}
+                        </pre>
+                      ) : (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <MarkdownRenderer content={results.visual_map} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </Card>
               </motion.div>
-            )}
+            )
 
             {/* Trust Footer & Feedback */}
             <div className="space-y-3 pt-2">
