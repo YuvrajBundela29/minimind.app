@@ -6,6 +6,13 @@ export interface PurposeLensOptions {
   customLensPrompt?: string;
 }
 
+export interface AIResponseWithCredits {
+  response: string;
+  credits_remaining: number | null;
+  daily_remaining: number | null;
+  monthly_remaining: number | null;
+}
+
 export class AIService {
   private static isAuthError(error: unknown): boolean {
     const candidate = error as { message?: string; status?: number; context?: { status?: number } };
@@ -21,7 +28,7 @@ export class AIService {
     );
   }
 
-  static async invokeChat(body: Record<string, unknown>): Promise<{ response?: string; [key: string]: unknown }> {
+  static async invokeChat(body: Record<string, unknown>): Promise<AIResponseWithCredits> {
     const invoke = () => supabase.functions.invoke('chat', { body });
 
     let { data, error } = await invoke();
@@ -51,7 +58,13 @@ export class AIService {
       throw new Error(error.message || 'Failed to process request');
     }
 
-    return (data ?? {}) as { response?: string; [key: string]: unknown };
+    const result = (data ?? {}) as Record<string, unknown>;
+    return {
+      response: (result.response as string) || 'Unable to generate response. Please try again.',
+      credits_remaining: (result.credits_remaining as number) ?? null,
+      daily_remaining: (result.daily_remaining as number) ?? null,
+      monthly_remaining: (result.monthly_remaining as number) ?? null,
+    };
   }
 
   static async getExplanation(
@@ -59,8 +72,8 @@ export class AIService {
     mode: string,
     language: string,
     lensOptions?: PurposeLensOptions
-  ): Promise<string> {
-    const data = await AIService.invokeChat({
+  ): Promise<AIResponseWithCredits> {
+    return AIService.invokeChat({
       prompt,
       mode,
       language,
@@ -68,23 +81,19 @@ export class AIService {
       purposeLens: lensOptions?.purposeLens || 'general',
       customLensPrompt: lensOptions?.customLensPrompt,
     });
-
-    return (data.response as string) || 'Unable to generate response. Please try again.';
   }
 
-  static async getEkaksharAnswer(prompt: string, language: string): Promise<string> {
-    const data = await AIService.invokeChat({ prompt, language, type: 'ekakshar' });
-    return (data.response as string) || 'Unable to generate response. Please try again.';
+  static async getEkaksharAnswer(prompt: string, language: string): Promise<AIResponseWithCredits> {
+    return AIService.invokeChat({ prompt, language, type: 'ekakshar' });
   }
 
-  static async getOneWordAnswer(prompt: string, language: string): Promise<string> {
-    const data = await AIService.invokeChat({ prompt, language, type: 'oneword' });
-    return (data.response as string) || 'Unknown';
+  static async getOneWordAnswer(prompt: string, language: string): Promise<AIResponseWithCredits> {
+    return AIService.invokeChat({ prompt, language, type: 'oneword' });
   }
 
   static async refinePrompt(prompt: string, language: string): Promise<string> {
     const data = await AIService.invokeChat({ prompt, language, type: 'refine' });
-    return (data.response as string) || prompt;
+    return data.response || prompt;
   }
 
   static async continueConversation(
@@ -92,8 +101,8 @@ export class AIService {
     mode: string,
     language: string,
     lensOptions?: PurposeLensOptions
-  ): Promise<string> {
-    const data = await AIService.invokeChat({
+  ): Promise<AIResponseWithCredits> {
+    return AIService.invokeChat({
       messages,
       mode,
       language,
@@ -101,8 +110,6 @@ export class AIService {
       purposeLens: lensOptions?.purposeLens || 'general',
       customLensPrompt: lensOptions?.customLensPrompt,
     });
-
-    return (data.response as string) || 'Unable to continue conversation. Please try again.';
   }
 }
 

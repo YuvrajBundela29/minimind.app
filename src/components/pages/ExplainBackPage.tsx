@@ -51,14 +51,14 @@ const ExplainBackPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const response = await AIService.getExplanation(
+      const result = await AIService.getExplanation(
         `Explain this concept clearly and thoroughly so that someone could learn and then explain it back: ${topic}`,
         'thinker',
         'en'
       );
       
       useCredits(2, 'explain_back_learn');
-      setAiExplanation(response);
+      setAiExplanation(result.response);
       setStep('learn');
     } catch (error) {
       console.error('Error getting explanation:', error);

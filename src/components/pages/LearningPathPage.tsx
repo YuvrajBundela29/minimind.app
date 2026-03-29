@@ -84,9 +84,9 @@ const LearningPathPage: React.FC = () => {
       const subject = SUBJECTS.find(s => s.id === selectedSubject);
       const prompt = `Generate a learning path for ${subject?.name} at ${selectedLevel} level. Return ONLY a JSON array of 5-7 topics, each with "title" and "description" fields. Format: [{"title": "Topic 1", "description": "Brief description"}, ...]`;
       
-      const response = await AIService.getExplanation(prompt, 'thinker', 'en');
+      const result = await AIService.getExplanation(prompt, 'thinker', 'en');
       
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      const jsonMatch = result.response.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Failed to parse topics');
       
       const topicsData = JSON.parse(jsonMatch[0]);
@@ -138,19 +138,19 @@ const LearningPathPage: React.FC = () => {
     
     try {
       const prompt = `Explain "${topic.title}" in the context of ${currentPath?.subject}. ${topic.description}`;
-      const response = await AIService.getExplanation(prompt, mode, 'en');
+      const result = await AIService.getExplanation(prompt, mode, 'en');
       
       await useCredits(cost, 'learningPathTopic');
       
       setSelectedTopic(prev => {
         if (!prev) return null;
-        return { ...prev, loading: false, explanations: { ...prev.explanations, [mode]: response } };
+        return { ...prev, loading: false, explanations: { ...prev.explanations, [mode]: result.response } };
       });
 
       setCurrentPath(prev => {
         if (!prev) return null;
         const updatedTopics = prev.topics.map(t => 
-          t.id === topic.id ? { ...t, explanations: { ...t.explanations, [mode]: response } } : t
+          t.id === topic.id ? { ...t, explanations: { ...t.explanations, [mode]: result.response } } : t
         );
         return { ...prev, topics: updatedTopics };
       });

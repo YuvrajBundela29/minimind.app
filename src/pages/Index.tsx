@@ -371,24 +371,24 @@ const Index = () => {
     questionText: string,
     modeKey: ModeKey,
     language: LanguageKey
-  ): Promise<string> => {
+  ): Promise<{ text: string; credits_remaining: number | null; daily_remaining: number | null; monthly_remaining: number | null }> => {
     // Check cache first (include purpose lens in cache key)
     const cacheKey = apiCache.generateKey(questionText, modeKey, `${language}-${purposeLens}`);
     const cached = apiCache.get(cacheKey);
     if (cached) {
-      return cached;
+      return { text: cached, credits_remaining: null, daily_remaining: null, monthly_remaining: null };
     }
     
     // Fetch from API with purpose lens
-    const response = await AIService.getExplanation(questionText, modeKey, language, {
+    const result = await AIService.getExplanation(questionText, modeKey, language, {
       purposeLens,
       customLensPrompt: purposeLens === 'custom' ? customLensPrompt : undefined
     });
     
-    // Cache the response
-    apiCache.set(cacheKey, response);
+    // Cache the response text
+    apiCache.set(cacheKey, result.response);
     
-    return response;
+    return { text: result.response, credits_remaining: result.credits_remaining, daily_remaining: result.daily_remaining, monthly_remaining: result.monthly_remaining };
   }, [purposeLens, customLensPrompt]);
   
   // Handle question submission with staggered loading
@@ -440,13 +440,15 @@ const Index = () => {
       
       // Start this mode
       try {
-        const response = await fetchModeExplanation(questionText, modeKey, selectedLanguage);
+        const result = await fetchModeExplanation(questionText, modeKey, selectedLanguage);
         
         // Check if aborted
         if (abortControllerRef.current?.signal.aborted) return;
         
-        // Deduct credits after successful response
-        await useCredits(cost, modeKey);
+        // Sync credits from server response (server already deducted)
+        if (result.credits_remaining !== null) {
+          syncCreditsFromServer(result.credits_remaining, result.daily_remaining, result.monthly_remaining);
+        }
         
         // Check milestone notifications
         const remaining = getCredits();
@@ -471,11 +473,11 @@ const Index = () => {
           }
         }
         
-        setAnswers(prev => ({ ...prev, [modeKey]: response }));
-        newAnswers[modeKey] = response;
+        setAnswers(prev => ({ ...prev, [modeKey]: result.text }));
+        newAnswers[modeKey] = result.text;
         setChatHistories(prev => ({
           ...prev,
-          [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
+          [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.text }]
         }));
         
         // Fire-and-forget usage log
@@ -483,7 +485,7 @@ const Index = () => {
           queryText: questionText,
           mode: modeKey,
           language: selectedLanguage,
-          responseLength: response.length,
+          responseLength: result.text.length,
         });
       } catch (error: any) {
         if (error.name === 'AbortError') return;
@@ -610,23 +612,25 @@ const Index = () => {
     setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'user', content: message }] }));
     setLoadingModes(prev => ({ ...prev, [modeKey]: true }));
     try {
-      const response = await AIService.continueConversation(
+      const result = await AIService.continueConversation(
         [...chatHistories[modeKey], { role: 'user', content: message }], 
         modeKey, 
         selectedLanguage,
         { purposeLens, customLensPrompt: purposeLens === 'custom' ? customLensPrompt : undefined }
       );
       
-      // Deduct credits after successful response
-      await useCredits(cost, modeKey);
+      // Sync credits from server (server already deducted)
+      if (result.credits_remaining !== null) {
+        syncCreditsFromServer(result.credits_remaining, result.daily_remaining, result.monthly_remaining);
+      }
       
       const remaining = getCredits();
       if (remaining.total > 0 && remaining.total <= 5) {
         toast.warning(`⚡ Running low on credits! ${remaining.total} remaining`);
       }
       
-      setAnswers(prev => ({ ...prev, [modeKey]: response }));
-      setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }] }));
+      setAnswers(prev => ({ ...prev, [modeKey]: result.response }));
+      setChatHistories(prev => ({ ...prev, [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.response }] }));
     } catch (error) { toast.error('Failed to get response'); }
     finally { setLoadingModes(prev => ({ ...prev, [modeKey]: false })); }
     setChatInputs(prev => ({ ...prev, [modeKey]: '' }));
@@ -724,22 +728,22 @@ const Index = () => {
       const modeKey = MODE_PRIORITY[i];
       
       try {
-        const response = await fetchModeExplanation(prompt, modeKey, selectedLanguage);
+        const result = await fetchModeExplanation(prompt, modeKey, selectedLanguage);
         
         if (abortControllerRef.current?.signal.aborted) return;
         
-        setAnswers(prev => ({ ...prev, [modeKey]: response }));
-        newAnswers[modeKey] = response;
+        setAnswers(prev => ({ ...prev, [modeKey]: result.text }));
+        newAnswers[modeKey] = result.text;
         setChatHistories(prev => ({
           ...prev,
-          [modeKey]: [...prev[modeKey], { role: 'assistant', content: response }]
+          [modeKey]: [...prev[modeKey], { role: 'assistant', content: result.text }]
         }));
         
         logUsage({
           queryText: prompt,
           mode: modeKey,
           language: selectedLanguage,
-          responseLength: response.length,
+          responseLength: result.text.length,
         });
       } catch (error: any) {
         if (error.name === 'AbortError') return;
