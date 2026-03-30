@@ -488,6 +488,19 @@ const LearningPathPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Claim Certificate button for completed paths */}
+        {progress === 100 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Button
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold"
+              onClick={() => issueCertificateForPath(currentPath)}
+            >
+              <Award className="w-5 h-5 mr-2" />
+              Claim Certificate 🎓
+            </Button>
+          </motion.div>
+        )}
       </div>
     );
   }
