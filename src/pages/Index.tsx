@@ -988,6 +988,14 @@ const Index = () => {
               </motion.div>
             </Suspense>
           )}
+          
+          {currentPage === 'account' && (
+            <Suspense fallback={<PageLoadingFallback />}>
+              <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <AccountPage onNavigate={(page: string) => setCurrentPage(page as typeof currentPage)} onSignOut={handleSignOut} />
+              </motion.div>
+            </Suspense>
+          )}
         </AnimatePresence>
       </main>
       
