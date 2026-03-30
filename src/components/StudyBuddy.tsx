@@ -156,8 +156,7 @@ const StudyBuddy: React.FC = () => {
 };
 
 function toast_success() {
-  const { toast } = require('sonner');
-  toast.success('Question saved to notes!');
+  import('sonner').then(({ toast: t }) => t.success('Question saved to notes!'));
 }
 
 export default StudyBuddy;
