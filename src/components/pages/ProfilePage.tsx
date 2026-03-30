@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
+import {
   User, Trophy, Flame, Calendar, Edit2, Save, X, LogOut,
-  TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles
+  TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles, Download, Loader2, RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureBadgeCertificate } from '@/services/certificateService';
+import AIService from '@/services/aiService';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModeKey, modes } from '@/config/minimind';
 import { AvatarCustomizer, AvatarWithFrame } from '@/components/AvatarCustomizer';
@@ -42,6 +44,15 @@ interface SkillArea {
   trend: 'up' | 'stable' | 'down';
 }
 
+interface BrainProfile {
+  summary: string;
+  strengths: string[];
+  growthAreas: string[];
+  focusMode: string;
+  learningPattern: string;
+  recommendedPlan: string[];
+}
+
 const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -62,6 +73,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const [presetAvatar, setPresetAvatar] = useState<string | null>(null);
   const [streakData, setStreakData] = useState({ currentStreak: 0 });
   const [celebrationAchievements, setCelebrationAchievements] = useState<Achievement[]>([]);
+  const [brainProfile, setBrainProfile] = useState<BrainProfile | null>(null);
+  const [analyzingBrain, setAnalyzingBrain] = useState(false);
+  const [profileQuestionCount, setProfileQuestionCount] = useState(0);
 
   useEffect(() => {
     fetchUserData();
@@ -134,8 +148,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
+      const { data: usageRows } = await supabase
+        .from('usage_logs')
+        .select('mode')
+        .eq('user_id', user.id);
+
+      const usageFromDb: Record<ModeKey, number> = { beginner: 0, thinker: 0, story: 0, mastery: 0 };
+      (usageRows ?? []).forEach((row: { mode: string | null }) => {
+        const mode = row.mode as ModeKey;
+        if (mode in usageFromDb) {
+          usageFromDb[mode] += 1;
+        }
+      });
+      setModeUsage(usageFromDb);
+
       // Sync total_questions if out of date
       const realCount = actualQuestionCount ?? 0;
+      setProfileQuestionCount(realCount);
       if (statsData && statsData.total_questions !== realCount) {
         await supabase
           .from('user_statistics')
@@ -143,7 +172,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
           .eq('user_id', user.id);
         statsData.total_questions = realCount;
       }
-      
+
       if (statsData) {
         setStatistics(statsData);
       }
@@ -153,9 +182,18 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         .select('*')
         .eq('user_id', user.id)
         .single();
-      
+
       if (settingsData) {
         setSettings(settingsData);
+      }
+
+      const cachedBrainProfile = localStorage.getItem(`minimind-brain-profile-${user.id}`);
+      if (cachedBrainProfile) {
+        try {
+          setBrainProfile(JSON.parse(cachedBrainProfile));
+        } catch {
+          localStorage.removeItem(`minimind-brain-profile-${user.id}`);
+        }
       }
 
       // Fetch streak data first (used for badge unlock checks)
@@ -263,6 +301,127 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
       setLoading(false);
     }
   };
+
+  const normalizeBrainProfile = (raw: any): BrainProfile | null => {
+    if (!raw || typeof raw !== 'object') return null;
+
+    const strengths = Array.isArray(raw.strengths)
+      ? raw.strengths.filter((x: unknown) => typeof x === 'string').slice(0, 3)
+      : [];
+    const growthAreas = Array.isArray(raw.growthAreas)
+      ? raw.growthAreas.filter((x: unknown) => typeof x === 'string').slice(0, 3)
+      : [];
+    const recommendedPlan = Array.isArray(raw.recommendedPlan)
+      ? raw.recommendedPlan.filter((x: unknown) => typeof x === 'string').slice(0, 4)
+      : [];
+
+    if (typeof raw.summary !== 'string' || raw.summary.trim().length === 0) return null;
+
+    return {
+      summary: raw.summary,
+      strengths,
+      growthAreas,
+      focusMode: typeof raw.focusMode === 'string' ? raw.focusMode : 'Balanced',
+      learningPattern: typeof raw.learningPattern === 'string' ? raw.learningPattern : 'Adaptive learner',
+      recommendedPlan,
+    };
+  };
+
+  const analyzeBrainProfile = useCallback(async (showToast = true): Promise<BrainProfile | null> => {
+    if (!user) return null;
+    if (profileQuestionCount < 3) {
+      if (showToast) toast.info('Ask at least 3 questions to unlock auto analysis.');
+      return null;
+    }
+
+    setAnalyzingBrain(true);
+    try {
+      const prompt = `Analyze this learner and return ONLY valid JSON.
+
+Data:
+- Total questions: ${profileQuestionCount}
+- Current streak: ${streakData.currentStreak}
+- Mode usage: ${JSON.stringify(modeUsage)}
+- Skill levels: ${JSON.stringify(skillAreas)}
+
+Return exactly this JSON shape:
+{
+  "summary": "2-3 sentence personalized summary",
+  "strengths": ["...", "...", "..."],
+  "growthAreas": ["...", "..."],
+  "focusMode": "best mode for this learner",
+  "learningPattern": "short description of learning behavior",
+  "recommendedPlan": ["step 1", "step 2", "step 3"]
+}`;
+
+      const result = await AIService.invokeChat({
+        prompt,
+        mode: 'mastery',
+        language: 'en',
+        type: 'explain',
+      });
+
+      const text = result.response ?? '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Invalid profile analysis response');
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const normalized = normalizeBrainProfile(parsed);
+      if (!normalized) throw new Error('Invalid profile analysis payload');
+
+      setBrainProfile(normalized);
+      localStorage.setItem(`minimind-brain-profile-${user.id}`, JSON.stringify(normalized));
+
+      if (showToast) {
+        toast.success('Brain analysis updated!');
+      }
+
+      return normalized;
+    } catch (error) {
+      console.error('Brain profile analysis failed:', error);
+      if (showToast) {
+        toast.error('Could not generate brain analysis right now.');
+      }
+      return null;
+    } finally {
+      setAnalyzingBrain(false);
+    }
+  }, [user, profileQuestionCount, streakData.currentStreak, modeUsage, skillAreas]);
+
+  useEffect(() => {
+    if (activeTab !== 'progress') return;
+    if (!user || analyzingBrain || brainProfile || profileQuestionCount < 3) return;
+    void analyzeBrainProfile(false);
+  }, [activeTab, user, analyzingBrain, brainProfile, profileQuestionCount, analyzeBrainProfile]);
+
+  const handleExportProgress = useCallback(async () => {
+    const analysis = brainProfile ?? (await analyzeBrainProfile(false));
+
+    const report = {
+      generatedAt: new Date().toISOString(),
+      learner: profile?.display_name || user?.email || 'Learner',
+      stats: {
+        totalQuestions: profileQuestionCount,
+        streak: streakData.currentStreak,
+        unlockedAchievements: achievements.filter(a => a.unlocked).length,
+      },
+      modeUsage,
+      skillAreas,
+      brainProfile: analysis,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `MiniMind-Progress-Report-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success('Progress report exported!');
+  }, [brainProfile, analyzeBrainProfile, profile?.display_name, user?.email, profileQuestionCount, streakData.currentStreak, achievements, modeUsage, skillAreas]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
