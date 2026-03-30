@@ -467,6 +467,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_history: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          language: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          language?: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          language?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_purchases: {
         Row: {
           id: string
