@@ -15,6 +15,7 @@ interface MobileHeaderProps {
   onNewChat?: () => void;
   hasActiveChat?: boolean;
   onNavigateToSubscription?: () => void;
+  onNavigateToShop?: () => void;
 }
 
 const MobileHeader: React.FC<MobileHeaderProps> = ({
