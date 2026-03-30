@@ -13,7 +13,7 @@ const EXPLORE_ITEMS = [
   { id: 'arena', label: 'Arena', description: 'Daily challenge — compete & win coins', icon: Trophy, gradient: 'from-amber-500 to-orange-500', emoji: '🏆' },
   { id: 'shop', label: 'Shop', description: 'Spend coins on themes & power-ups', icon: ShoppingBag, gradient: 'from-emerald-500 to-green-500', emoji: '🛍️' },
   { id: 'certificates', label: 'Certificates', description: 'Download your earned certificates', icon: Award, gradient: 'from-blue-500 to-cyan-500', emoji: '🎓' },
-  { id: 'learningpath', label: 'Study Plans', description: 'AI-powered structured learning paths', icon: GraduationCap, gradient: 'from-violet-500 to-purple-500', emoji: '📚' },
+  { id: 'learningpath', label: 'Learning Paths', description: 'AI-powered structured learning paths', icon: GraduationCap, gradient: 'from-violet-500 to-purple-500', emoji: '📚' },
   { id: 'purposelens', label: 'Learning Purpose', description: 'Set context: JEE, NEET, School & more', icon: Target, gradient: 'from-pink-500 to-rose-500', emoji: '🎯' },
   { id: 'explainback', label: 'Test Yourself', description: 'Explain concepts to check understanding', icon: MessageCircle, gradient: 'from-teal-500 to-cyan-500', emoji: '🧠' },
   { id: 'ekakshar', label: 'Quick Recall', description: 'Flashcard-style one-word summaries', icon: Zap, gradient: 'from-yellow-500 to-amber-500', emoji: '⚡' },
