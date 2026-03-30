@@ -49,6 +49,7 @@ const ShopPage = React.lazy(() => import('@/components/pages/ShopPage'));
 const CertificatePage = React.lazy(() => import('@/components/pages/CertificatePage'));
 const GuruDashboardPage = React.lazy(() => import('@/components/pages/GuruDashboardPage'));
 const ExplorePage = React.lazy(() => import('@/components/pages/ExplorePage'));
+const AccountPage = React.lazy(() => import('@/components/pages/AccountPage'));
 
 // Types for history
 export interface HistoryItem {
