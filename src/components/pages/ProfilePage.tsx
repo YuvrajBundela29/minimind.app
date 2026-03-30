@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModeKey, modes } from '@/config/minimind';
 import { AvatarCustomizer, AvatarWithFrame } from '@/components/AvatarCustomizer';
+import AchievementCelebration from '@/components/AchievementCelebration';
 
 const displayNameSchema = z.string()
   .max(100, 'Display name must be less than 100 characters')
