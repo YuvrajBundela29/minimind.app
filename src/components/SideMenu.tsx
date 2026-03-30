@@ -1,7 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, SquarePen, Sun, Moon, HelpCircle, MessageSquareHeart, Zap, Clock, User, Settings, BookOpen, Crown, FileText, Compass } from 'lucide-react';
+import { 
+  X, SquarePen, Sun, Moon, HelpCircle, MessageSquareHeart, 
+  Zap, Clock, User, Settings, BookOpen, Crown, FileText, 
+  Compass, ChevronRight
+} from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import minimindLogo from '@/assets/minimind-logo.png';
 
 interface HistoryEntry {
   id: string;
@@ -60,12 +65,19 @@ const SideMenu: React.FC<SideMenuProps> = ({
   if (yesterdayItems.length > 0) grouped.push({ label: 'Yesterday', items: yesterdayItems });
   if (olderItems.length > 0) grouped.push({ label: 'Previous', items: olderItems.slice(0, 20) });
 
+  const tierLabel = tier === 'free' ? 'Free' : tier === 'plus' ? 'Plus' : 'Pro';
+  const tierGradient = tier === 'pro' 
+    ? 'from-amber-500 to-orange-500' 
+    : tier === 'plus' 
+    ? 'from-violet-500 to-purple-500' 
+    : 'from-slate-400 to-slate-500';
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 z-50 bg-black/50"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -73,75 +85,99 @@ const SideMenu: React.FC<SideMenuProps> = ({
           />
           
           <motion.div
-            className="fixed left-0 top-0 bottom-0 z-50 w-72 bg-card flex flex-col"
+            className="fixed left-0 top-0 bottom-0 z-50 w-[280px] flex flex-col overflow-hidden"
+            style={{
+              background: theme === 'dark' 
+                ? 'linear-gradient(180deg, hsl(220 14% 8%) 0%, hsl(220 14% 6%) 100%)' 
+                : 'linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 97%) 100%)',
+            }}
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
           >
-            {/* Top: New Chat + Close */}
-            <div className="p-3 border-b border-border flex items-center gap-2">
+            {/* ── Header: Logo + New Chat ── */}
+            <div className="px-3 pt-4 pb-2">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <img src={minimindLogo} alt="MiniMind" className="w-6 h-6" width={24} height={24} />
+                  <span className="logo-text-premium text-base">MiniMind</span>
+                  {tier !== 'free' && (
+                    <span className={`px-1.5 py-0.5 rounded-md bg-gradient-to-r ${tierGradient} text-white text-[10px] font-bold uppercase tracking-wide`}>
+                      {tierLabel}
+                    </span>
+                  )}
+                </div>
+                <motion.button
+                  className="p-1.5 rounded-lg hover:bg-muted/80 transition-colors"
+                  onClick={onClose}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </motion.button>
+              </div>
+
+              {/* New Chat Button */}
               {onNewChat && (
                 <motion.button
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-border text-foreground font-medium text-sm hover:bg-muted transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm text-foreground text-sm font-medium hover:bg-muted/60 hover:border-primary/30 transition-all group"
                   onClick={() => { onNewChat(); onClose(); }}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ y: -1 }}
                 >
-                  <SquarePen className="w-4 h-4" />
+                  <SquarePen className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span>New Chat</span>
                 </motion.button>
               )}
-              <motion.button
-                className="p-2 rounded-lg hover:bg-muted transition-colors"
-                onClick={onClose}
-                whileTap={{ scale: 0.95 }}
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </motion.button>
             </div>
 
-            {/* Explore button */}
-            <div className="px-3 pt-3 pb-1">
+            {/* ── Explore Button ── */}
+            <div className="px-3 py-1">
               <motion.button
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   currentPage === 'explore' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'hover:bg-muted text-foreground'
+                    ? 'bg-gradient-to-r from-primary/15 to-accent/10 text-primary border border-primary/20 shadow-sm' 
+                    : 'hover:bg-muted/60 text-foreground'
                 }`}
                 onClick={() => { onNavigate('explore'); onClose(); }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97 }}
               >
                 <Compass className="w-4 h-4" />
                 <span>Explore</span>
+                <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-40" />
               </motion.button>
             </div>
 
-            {/* Chat History - scrollable middle */}
-            <div className="flex-1 overflow-y-auto px-3 py-2 custom-scrollbar">
+            {/* ── Divider ── */}
+            <div className="mx-4 my-1.5 h-px bg-border/50" />
+
+            {/* ── Chat History (scrollable) ── */}
+            <div className="flex-1 overflow-y-auto px-3 py-1 custom-scrollbar min-h-0">
               {grouped.length === 0 ? (
-                <div className="text-center py-8">
-                  <Clock className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Your chat history will appear here</p>
+                <div className="flex flex-col items-center justify-center py-12 opacity-50">
+                  <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center mb-2">
+                    <Clock className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Your conversations<br />will appear here
+                  </p>
                 </div>
               ) : (
                 grouped.map(group => (
-                  <div key={group.label} className="mb-3">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1">
+                  <div key={group.label} className="mb-2.5">
+                    <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest px-2 mb-1">
                       {group.label}
                     </p>
                     <div className="space-y-0.5">
                       {group.items.map(item => (
                         <motion.button
                           key={item.id}
-                          className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors truncate"
-                          onClick={() => {
-                            onLoadHistoryItem?.(item);
-                            onClose();
-                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-lg text-[13px] text-foreground/80 hover:bg-muted/60 hover:text-foreground transition-all truncate"
+                          onClick={() => { onLoadHistoryItem?.(item); onClose(); }}
                           whileTap={{ scale: 0.98 }}
                           title={item.question}
                         >
-                          {item.question.length > 40 ? item.question.slice(0, 40) + '…' : item.question}
+                          {item.question.length > 38 ? item.question.slice(0, 38) + '…' : item.question}
                         </motion.button>
                       ))}
                     </div>
@@ -150,56 +186,53 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
             </div>
 
-            {/* Bottom: Account section */}
-            <div className="border-t border-border p-2 space-y-0.5">
-              {/* Credits */}
-              <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 mb-1">
-                <div className="flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs font-medium text-foreground">
-                    {tier === 'free' ? 'Free' : tier.charAt(0).toUpperCase() + tier.slice(1)}
-                  </span>
+            {/* ── Bottom: Account section ── */}
+            <div className="border-t border-border/50 p-2.5 space-y-1">
+              {/* Credits pill */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/40 mb-1">
+                <div className="flex items-center gap-2">
+                  <div className={`w-5 h-5 rounded-md bg-gradient-to-br ${tierGradient} flex items-center justify-center`}>
+                    <Zap className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-xs font-semibold text-foreground">{tierLabel}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{credits.total} credits</span>
+                <span className={`text-xs font-semibold ${
+                  credits.total <= 5 ? 'text-destructive' : credits.total <= 20 ? 'text-amber-500' : 'text-primary'
+                }`}>
+                  {credits.total} credits
+                </span>
               </div>
 
-              {[
-                { id: 'profile', label: 'Profile', icon: User },
-                { id: 'history', label: 'History', icon: Clock },
-                { id: 'notes', label: 'Saved Notes', icon: FileText },
-                { id: 'subscription', label: 'Subscription', icon: Crown },
-                { id: 'settings', label: 'Settings', icon: Settings },
-              ].map(item => (
-                <motion.button
-                  key={item.id}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    currentPage === item.id 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'hover:bg-muted text-foreground'
-                  }`}
-                  onClick={() => { onNavigate(item.id); onClose(); }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </motion.button>
-              ))}
+              {/* Account button */}
+              <motion.button
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                  currentPage === 'account'
+                    ? 'bg-primary/10 text-primary font-semibold'
+                    : 'hover:bg-muted/60 text-foreground font-medium'
+                }`}
+                onClick={() => { onNavigate('account'); onClose(); }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <User className="w-4 h-4" />
+                <span>Account</span>
+                <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-40" />
+              </motion.button>
 
-              {/* Theme + Guide */}
-              <div className="flex gap-1 pt-1">
+              {/* Quick actions row */}
+              <div className="flex gap-0.5 pt-0.5">
                 <motion.button
-                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg hover:bg-muted text-muted-foreground text-xs transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg hover:bg-muted/60 text-muted-foreground text-[11px] font-medium transition-colors"
                   onClick={onToggleTheme}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
                   <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
                 </motion.button>
                 {onShowGuide && (
                   <motion.button
-                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg hover:bg-muted text-muted-foreground text-xs transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg hover:bg-muted/60 text-muted-foreground text-[11px] font-medium transition-colors"
                     onClick={() => { onShowGuide(); onClose(); }}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <HelpCircle className="w-3.5 h-3.5" />
                     <span>Guide</span>
@@ -207,8 +240,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
                 )}
                 <motion.a
                   href="mailto:feedback@minimind.app?subject=MiniMind Feedback"
-                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg hover:bg-muted text-muted-foreground text-xs transition-colors"
-                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg hover:bg-muted/60 text-muted-foreground text-[11px] font-medium transition-colors"
+                  whileTap={{ scale: 0.95 }}
                 >
                   <MessageSquareHeart className="w-3.5 h-3.5" />
                   <span>Feedback</span>
