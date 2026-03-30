@@ -473,6 +473,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      refund_user_credit: {
+        Args: { p_cost: number; p_user_id: string }
+        Returns: Json
+      }
       update_user_credits: {
         Args: {
           p_daily_reset?: string
