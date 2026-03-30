@@ -314,6 +314,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack, onAuthSuccess }) => {
 
             {/* Email Form */}
             <form onSubmit={handleEmailAuth} className="space-y-4">
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Full Name</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Your full name"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-border bg-background focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
