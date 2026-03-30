@@ -73,6 +73,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const [presetAvatar, setPresetAvatar] = useState<string | null>(null);
   const [streakData, setStreakData] = useState({ currentStreak: 0 });
   const [celebrationAchievements, setCelebrationAchievements] = useState<Achievement[]>([]);
+  const [brainProfile, setBrainProfile] = useState<BrainProfile | null>(null);
+  const [analyzingBrain, setAnalyzingBrain] = useState(false);
+  const [profileQuestionCount, setProfileQuestionCount] = useState(0);
 
   useEffect(() => {
     fetchUserData();
