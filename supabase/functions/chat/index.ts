@@ -16,6 +16,7 @@ const CREDIT_COSTS: Record<string, number> = {
   ekakshar_quick: 3,
   learning_path: 5,
   explain_back_evaluate: 2,
+  arena_evaluate: 0,
 };
 
 // Input validation constants
@@ -23,7 +24,7 @@ const MAX_PROMPT_LENGTH = 5000;
 const MAX_MESSAGE_LENGTH = 10000;
 const MAX_MESSAGES_COUNT = 50;
 const VALID_MODES = ["beginner", "thinker", "story", "mastery"];
-const VALID_TYPES = ["explain", "ekakshar", "oneword", "oneline", "bullets", "diagram", "visual_map", "refine", "continue", "file_analysis", "learning_path", "explain_back_evaluate"];
+const VALID_TYPES = ["explain", "ekakshar", "oneword", "oneline", "bullets", "diagram", "visual_map", "refine", "continue", "file_analysis", "learning_path", "explain_back_evaluate", "arena_evaluate"];
 const VALID_LANGUAGES = [
   "en", "hi", "hinglish", "ta", "te", "bn", "gu", "kn", "ml", "mr", "or", "pa",
   "as", "ur", "sd", "ks", "ne", "sa", "kok", "mni", "doi", "sat", "mai", "bho",
@@ -745,6 +746,16 @@ Then provide your detailed feedback:
 [What to study or practice next]`;
       const langPrompt = languagePrompts[language] || languagePrompts.en;
       systemPrompt = `${systemPrompt}\n\n${langPrompt}`;
+    } else if (type === "arena_evaluate") {
+      if (!prompt) {
+        return new Response(
+          JSON.stringify({ error: "prompt is required for arena_evaluate type" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Use custom system prompt from body if provided, otherwise use a default examiner prompt
+      const customSystemPrompt = typeof body.system_prompt === "string" ? body.system_prompt : "";
+      systemPrompt = customSystemPrompt || `You are an examiner. Score the student's answer out of 100. Give a score, one sentence of feedback, and the correct answer. Format exactly: SCORE:[0-100]\nFEEDBACK:[text]\nCORRECT:[text]`;
     } else if (type === "continue") {
       if (!messages || messages.length === 0) {
         return new Response(

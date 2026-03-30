@@ -148,8 +148,8 @@ const ArenaPage: React.FC = () => {
       const result = await AIService.invokeChat({
         prompt: answer,
         type: 'arena_evaluate',
-        language: 'English',
-        mode: 'arena',
+        language: 'en',
+        mode: 'beginner',
         system_prompt: `You are an examiner. Score this answer to the question "${challenge.question}" out of 100. The ideal answer is "${challenge.correct_answer}". Give a score, one sentence of feedback, and show where they went wrong if at all. Format exactly: SCORE:[0-100]\nFEEDBACK:[text]\nCORRECT:[text]`,
       });
 
