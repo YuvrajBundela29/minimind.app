@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, ChevronRight, Sparkles, Clock, Target, 
   CheckCircle2, Circle, Play, Lock, Zap, ArrowLeft,
-  GraduationCap, Rocket, Star, TrendingUp, ChevronDown
+  GraduationCap, Rocket, Star, TrendingUp, ChevronDown, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
