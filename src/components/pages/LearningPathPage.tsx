@@ -59,6 +59,7 @@ const LEVELS = [
 const LearningPathPage: React.FC = () => {
   const { tier, hasCredits, useCredits, getCredits, showUpgradePrompt } = useSubscription();
   const { isEarlyAccess } = useEarlyAccess();
+  const { awardCoins } = useCoins();
   const [step, setStep] = useState<'select' | 'path' | 'topic'>('select');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
