@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Target, TrendingUp, BookOpen, Brain, Sparkles, 
-  ChevronRight, Calendar, Flame, Trophy, Zap
+  ChevronRight, Flame, Trophy, Zap, Loader2, RefreshCw
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   useWeeklyActivity,
   useLanguageBreakdown,
@@ -19,6 +22,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, ResponsiveContainer,
 } from 'recharts';
+import { ModeKey, modes } from '@/config/minimind';
 
 interface LearningTopic {
   id: string;
@@ -28,12 +32,6 @@ interface LearningTopic {
   questionsAsked: number;
 }
 
-interface SkillArea {
-  name: string;
-  level: number;
-  trend: 'up' | 'stable' | 'down';
-}
-
 interface DashboardStats {
   totalQuestions: number;
   streak: number;
@@ -41,6 +39,16 @@ interface DashboardStats {
   topicsExplored: number;
   learningPathsActive: number;
   learningPathsCompleted: number;
+}
+
+interface BrainAnalysis {
+  summary: string;
+  strengths: string[];
+  growthAreas: string[];
+  brainType: string;
+  brainEmoji: string;
+  tip: string;
+  modeInsights: { mode: string; insight: string }[];
 }
 
 const ProgressDashboard: React.FC = () => {
@@ -54,7 +62,8 @@ const ProgressDashboard: React.FC = () => {
     learningPathsCompleted: 0,
   });
   const [activeTopics, setActiveTopics] = useState<LearningTopic[]>([]);
-  const [skillAreas, setSkillAreas] = useState<SkillArea[]>([]);
+  const [brainAnalysis, setBrainAnalysis] = useState<BrainAnalysis | null>(null);
+  const [analyzingBrain, setAnalyzingBrain] = useState(false);
 
   // Usage analytics hooks
   const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
@@ -65,7 +74,6 @@ const ProgressDashboard: React.FC = () => {
 
   const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#8b5cf6'];
 
-  // Load data from localStorage
   useEffect(() => {
     const savedStats = localStorage.getItem('minimind-stats');
     const savedHistory = localStorage.getItem('minimind-history');
@@ -86,13 +94,11 @@ const ProgressDashboard: React.FC = () => {
     if (savedHistory) {
       try {
         const history = JSON.parse(savedHistory);
-        // Extract unique topics from history
         const topicMap = new Map<string, LearningTopic>();
         history.forEach((item: any) => {
           const key = item.question.slice(0, 50).toLowerCase();
           if (topicMap.has(key)) {
-            const existing = topicMap.get(key)!;
-            existing.questionsAsked++;
+            topicMap.get(key)!.questionsAsked++;
           } else {
             topicMap.set(key, {
               id: item.id,
@@ -121,17 +127,98 @@ const ProgressDashboard: React.FC = () => {
       } catch (e) {}
     }
 
-    // Generate skill areas based on history
-    setSkillAreas([
-      { name: 'Critical Thinking', level: 65, trend: 'up' },
-      { name: 'Science & Nature', level: 45, trend: 'up' },
-      { name: 'Technology', level: 55, trend: 'stable' },
-      { name: 'History & Culture', level: 30, trend: 'up' },
-    ]);
+    // Load cached brain analysis
+    const cached = localStorage.getItem('minimind-brain-analysis');
+    if (cached) {
+      try { setBrainAnalysis(JSON.parse(cached)); } catch (e) {}
+    }
   }, []);
 
+  const runBrainAnalysis = async () => {
+    setAnalyzingBrain(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not signed in');
+
+      // Fetch recent usage logs for analysis
+      const { data: recentLogs } = await supabase
+        .from('usage_logs')
+        .select('query_text, mode, language, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const { data: streakRow } = await supabase
+        .from('user_streaks')
+        .select('current_streak, longest_streak, xp, level')
+        .eq('user_id', user.id)
+        .single();
+
+      // Build context for AI
+      const modeBreakdown: Record<string, number> = {};
+      const topics: string[] = [];
+      const languages: Record<string, number> = {};
+      
+      (recentLogs || []).forEach(log => {
+        if (log.mode) modeBreakdown[log.mode] = (modeBreakdown[log.mode] || 0) + 1;
+        if (log.query_text) topics.push(log.query_text.slice(0, 80));
+        if (log.language) languages[log.language] = (languages[log.language] || 0) + 1;
+      });
+
+      const prompt = `Analyze this student's learning data and provide a detailed brain profile. Be encouraging but honest.
+
+Data:
+- Total questions: ${totalLogs}
+- Current streak: ${streakRow?.current_streak || 0} days
+- Longest streak: ${streakRow?.longest_streak || 0} days
+- XP: ${streakRow?.xp || 0}, Level: ${streakRow?.level || 1}
+- Mode usage: ${JSON.stringify(modeBreakdown)}
+- Languages used: ${JSON.stringify(languages)}
+- Recent topics (last 50): ${topics.slice(0, 20).join(' | ')}
+
+Return a JSON with these exact keys:
+{
+  "summary": "2-3 sentence personalized summary of their learning brain",
+  "strengths": ["strength1", "strength2", "strength3"],
+  "growthAreas": ["area1", "area2"],
+  "brainType": "Creative Explorer / Analytical Thinker / Balanced Learner / Deep Diver / etc",
+  "brainEmoji": "🧠 or relevant emoji",
+  "tip": "One personalized actionable tip",
+  "modeInsights": [{"mode": "beginner", "insight": "..."}, ...]
+}`;
+
+      const response = await supabase.functions.invoke('chat', {
+        body: {
+          messages: [
+            { role: 'system', content: 'You are a learning analytics AI. Respond ONLY with valid JSON, no markdown.' },
+            { role: 'user', content: prompt }
+          ]
+        }
+      });
+
+      if (response.error) throw new Error('AI analysis failed');
+
+      // Parse streaming response
+      const text = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      
+      // Extract JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Invalid AI response');
+
+      const analysis: BrainAnalysis = JSON.parse(jsonMatch[0]);
+      setBrainAnalysis(analysis);
+      localStorage.setItem('minimind-brain-analysis', JSON.stringify(analysis));
+      toast.success('Brain analysis complete! 🧠');
+    } catch (error) {
+      console.error('Brain analysis error:', error);
+      toast.error('Could not analyze your brain right now. Try again later.');
+    } finally {
+      setAnalyzingBrain(false);
+    }
+  };
+
   const getTrendIcon = (trend: string) => {
-    if (trend === 'up') return <TrendingUp className="w-3 h-3 text-green-500" />;
+    if (trend === 'up') return <TrendingUp className="w-3 h-3 text-emerald-500" />;
     if (trend === 'down') return <TrendingUp className="w-3 h-3 text-red-500 rotate-180" />;
     return <div className="w-3 h-0.5 bg-muted-foreground" />;
   };
@@ -144,11 +231,11 @@ const ProgressDashboard: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 mb-4">
-          <Target className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-medium text-blue-300">Learning Journey</span>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30 mb-4">
+          <Target className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium text-primary">Learning Journey</span>
         </div>
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
           Your Progress
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -163,28 +250,162 @@ const ProgressDashboard: React.FC = () => {
         className="grid grid-cols-2 gap-3"
       >
         <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
-          <Flame className="w-6 h-6 text-amber-400 mb-2" />
+          <Flame className="w-6 h-6 text-amber-500 mb-2" />
           <p className="text-2xl font-bold text-foreground">{stats.streak}</p>
           <p className="text-xs text-muted-foreground">Day Streak</p>
         </Card>
         <Card className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
-          <Brain className="w-6 h-6 text-purple-400 mb-2" />
+          <Brain className="w-6 h-6 text-purple-500 mb-2" />
           <p className="text-2xl font-bold text-foreground">{stats.totalQuestions}</p>
           <p className="text-xs text-muted-foreground">Questions Asked</p>
         </Card>
         <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
-          <BookOpen className="w-6 h-6 text-emerald-400 mb-2" />
+          <BookOpen className="w-6 h-6 text-emerald-500 mb-2" />
           <p className="text-2xl font-bold text-foreground">{stats.topicsExplored}</p>
           <p className="text-xs text-muted-foreground">Topics Explored</p>
         </Card>
-        <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/30">
-          <Trophy className="w-6 h-6 text-blue-400 mb-2" />
+        <Card className="p-4 bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30">
+          <Trophy className="w-6 h-6 text-primary mb-2" />
           <p className="text-2xl font-bold text-foreground">{stats.learningPathsCompleted}</p>
           <p className="text-xs text-muted-foreground">Paths Completed</p>
         </Card>
       </motion.div>
 
-      {/* What You're Learning */}
+      {/* 🧠 AI Brain Analysis */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Brain className="w-4 h-4 text-purple-500" />
+            Your Brain Profile
+          </h3>
+          {brainAnalysis && (
+            <button
+              onClick={runBrainAnalysis}
+              disabled={analyzingBrain}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${analyzingBrain ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          )}
+        </div>
+
+        {brainAnalysis ? (
+          <div className="space-y-3">
+            {/* Brain Type Card */}
+            <Card className="p-5 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-violet-500/10 border-purple-500/20">
+              <div className="flex items-start gap-3">
+                <div className="text-4xl">{brainAnalysis.brainEmoji}</div>
+                <div className="flex-1">
+                  <p className="font-bold text-foreground text-lg">{brainAnalysis.brainType}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{brainAnalysis.summary}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Strengths & Growth */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="p-4 border-emerald-500/20">
+                <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">
+                  💪 Strengths
+                </h4>
+                <ul className="space-y-1.5">
+                  {brainAnalysis.strengths.map((s, i) => (
+                    <li key={i} className="text-xs text-foreground flex items-start gap-1.5">
+                      <span className="text-emerald-500 mt-0.5">✓</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card className="p-4 border-amber-500/20">
+                <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
+                  🌱 Growth Areas
+                </h4>
+                <ul className="space-y-1.5">
+                  {brainAnalysis.growthAreas.map((g, i) => (
+                    <li key={i} className="text-xs text-foreground flex items-start gap-1.5">
+                      <span className="text-amber-500 mt-0.5">→</span>
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+
+            {/* Mode Insights */}
+            {brainAnalysis.modeInsights && brainAnalysis.modeInsights.length > 0 && (
+              <Card className="p-4 border-border/50">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                  Mode Insights
+                </h4>
+                <div className="space-y-2.5">
+                  {brainAnalysis.modeInsights.map((mi, i) => {
+                    const modeConfig = modes[mi.mode as ModeKey];
+                    return (
+                      <div key={i} className="flex items-start gap-2.5">
+                        <span className="text-lg">{modeConfig?.icon || '📊'}</span>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">{modeConfig?.name || mi.mode}</p>
+                          <p className="text-xs text-muted-foreground">{mi.insight}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+
+            {/* Personalized Tip */}
+            <Card className="p-4 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+              <div className="flex items-start gap-3">
+                <Zap className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">AI Tip For You</p>
+                  <p className="text-sm text-foreground">{brainAnalysis.tip}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        ) : (
+          <Card className="p-6 text-center space-y-3">
+            <Brain className="w-10 h-10 mx-auto text-purple-500/50" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Discover Your Brain Type</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                AI analyzes your learning patterns, topics, and modes to create a detailed brain profile.
+              </p>
+            </div>
+            <Button
+              onClick={runBrainAnalysis}
+              disabled={analyzingBrain || totalLogs < 3}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+              size="sm"
+            >
+              {analyzingBrain ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Analyze My Brain
+                </>
+              )}
+            </Button>
+            {totalLogs < 3 && (
+              <p className="text-[10px] text-muted-foreground">Ask at least 3 questions to unlock brain analysis</p>
+            )}
+          </Card>
+        )}
+      </motion.div>
+
+      {/* Enhanced Mode Usage */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -211,8 +432,8 @@ const ProgressDashboard: React.FC = () => {
                 transition={{ delay: 0.1 * index }}
                 className="p-3 flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{topic.name}</p>
@@ -228,68 +449,6 @@ const ProgressDashboard: React.FC = () => {
         </Card>
       </motion.div>
 
-      {/* Skill Areas */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-foreground">Skills Growing</h3>
-          <span className="text-xs text-emerald-400 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" />
-            All improving
-          </span>
-        </div>
-        <Card className="p-4 bg-card/50 backdrop-blur-sm border-border/50">
-          <div className="space-y-4">
-            {skillAreas.map((skill, index) => (
-              <motion.div
-                key={skill.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-foreground">{skill.name}</span>
-                  <div className="flex items-center gap-2">
-                    {getTrendIcon(skill.trend)}
-                    <span className="text-xs text-muted-foreground">{skill.level}%</span>
-                  </div>
-                </div>
-                <Progress value={skill.level} className="h-2" />
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* Suggested Focus */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <h3 className="text-sm font-medium text-foreground mb-3">Suggested Next Focus</h3>
-        <Card className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/30">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="font-medium text-foreground">Deepen Your Understanding</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Based on your history, try exploring more about technology concepts using the Thinker mode for deeper analysis.
-              </p>
-              <button className="text-sm text-violet-400 hover:text-violet-300 mt-2 flex items-center gap-1">
-                Explore Now
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
       {/* Learning Path Progress */}
       {stats.learningPathsActive > 0 && (
         <motion.div
@@ -301,7 +460,7 @@ const ProgressDashboard: React.FC = () => {
           <Card className="p-4 bg-card/50 backdrop-blur-sm border-border/50">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                <Target className="w-6 h-6 text-emerald-400" />
+                <Target className="w-6 h-6 text-emerald-500" />
               </div>
               <div className="flex-1">
                 <p className="font-medium text-foreground">
