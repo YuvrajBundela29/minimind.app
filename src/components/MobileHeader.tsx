@@ -110,6 +110,9 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({
           </motion.button>
         )}
 
+        {/* Coins */}
+        <CoinBadge onNavigateToShop={onNavigateToShop} />
+
         {/* Credits */}
         <CreditBadge onNavigateToSubscription={onNavigateToSubscription} />
 
