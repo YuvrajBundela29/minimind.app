@@ -745,6 +745,16 @@ Then provide your detailed feedback:
 [What to study or practice next]`;
       const langPrompt = languagePrompts[language] || languagePrompts.en;
       systemPrompt = `${systemPrompt}\n\n${langPrompt}`;
+    } else if (type === "arena_evaluate") {
+      if (!prompt) {
+        return new Response(
+          JSON.stringify({ error: "prompt is required for arena_evaluate type" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Use custom system prompt from body if provided, otherwise use a default examiner prompt
+      const customSystemPrompt = typeof body.system_prompt === "string" ? body.system_prompt : "";
+      systemPrompt = customSystemPrompt || `You are an examiner. Score the student's answer out of 100. Give a score, one sentence of feedback, and the correct answer. Format exactly: SCORE:[0-100]\nFEEDBACK:[text]\nCORRECT:[text]`;
     } else if (type === "continue") {
       if (!messages || messages.length === 0) {
         return new Response(
