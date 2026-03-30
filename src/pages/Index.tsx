@@ -825,7 +825,7 @@ const Index = () => {
 
   return (
     <div className="app-container">
-      <MobileHeader onMenuClick={() => setIsMenuOpen(true)} onProfileClick={() => user ? setCurrentPage('profile') : setCurrentPage('auth')} currentLens={purposeLens} onNewChat={handleNewChat} hasActiveChat={hasAskedQuestion} onNavigateToSubscription={() => setCurrentPage('subscription')} />
+      <MobileHeader onMenuClick={() => setIsMenuOpen(true)} onProfileClick={() => user ? setCurrentPage('profile') : setCurrentPage('auth')} currentLens={purposeLens} onNewChat={handleNewChat} hasActiveChat={hasAskedQuestion} onNavigateToSubscription={() => setCurrentPage('subscription')} onNavigateToShop={() => setCurrentPage('shop')} />
       <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} currentPage={currentPage as NavigationId} onNavigate={setCurrentPage} theme={theme} onToggleTheme={toggleTheme} onShowGuide={() => setShowOnboarding(true)} onNewChat={handleNewChat} />
       
       <main className="page-content px-4 custom-scrollbar">
