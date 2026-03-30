@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff, ArrowLeft, Sparkles, KeyRound, User } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff, ArrowLeft, Sparkles, KeyRound, User as UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
