@@ -5,6 +5,7 @@ import {
   TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureBadgeCertificate } from '@/services/certificateService';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';

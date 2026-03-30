@@ -12,6 +12,7 @@ import { useCoins } from '@/hooks/useCoins';
 import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import { ModeKey, modes } from '@/config/minimind';
 import AIService from '@/services/aiService';
+import { ensureLearningPathCertificate } from '@/services/certificateService';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import TrustFooter from '@/components/TrustFooter';
