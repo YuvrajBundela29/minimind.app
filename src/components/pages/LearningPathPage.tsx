@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, ChevronRight, Sparkles, Clock, Target, 
   CheckCircle2, Circle, Play, Lock, Zap, ArrowLeft,
-  GraduationCap, Rocket, Star, TrendingUp, ChevronDown
+  GraduationCap, Rocket, Star, TrendingUp, ChevronDown, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -165,22 +165,47 @@ const LearningPathPage: React.FC = () => {
     }
   }, [currentPath, hasCredits, useCredits, showUpgradePrompt, isEarlyAccess]);
 
+  const issueCertificateForPath = useCallback(async (path: LearningPath) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please sign in to earn certificates.');
+        return;
+      }
+
+      const completedTopics = path.topics.filter(t => t.completed).length;
+      const masteryScore = Math.round((completedTopics / path.topics.length) * 100);
+
+      const certResult = await ensureLearningPathCertificate(
+        user.id,
+        path.id,
+        path.subject,
+        masteryScore,
+      );
+
+      if (certResult.created) {
+        toast.success('🎓 Certificate earned! Check your certificates page.');
+      } else if (certResult.certificateCode) {
+        toast.info('Certificate already exists for this path.');
+      } else if (certResult.error) {
+        console.error('Failed to issue certificate:', certResult.error);
+        toast.error('Certificate creation failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Failed to issue certificate:', err);
+      toast.error('Certificate creation failed. Please try again.');
+    }
+  }, []);
+
   const markTopicComplete = useCallback(async (topicId: string) => {
-    let pathCompleted = false;
-    let completedPath: LearningPath | null = null;
+    let updatedPath: LearningPath | null = null;
 
     setCurrentPath(prev => {
       if (!prev) return null;
       const updatedTopics = prev.topics.map(t => t.id === topicId ? { ...t, completed: true } : t);
       const newIndex = Math.min(prev.currentIndex + 1, updatedTopics.length - 1);
       const updated = { ...prev, topics: updatedTopics, currentIndex: newIndex };
-      
-      // Check if all topics are now completed
-      const allDone = updatedTopics.every(t => t.completed);
-      if (allDone) {
-        pathCompleted = true;
-        completedPath = updated;
-      }
+      updatedPath = updated;
 
       setSavedPaths(paths => {
         const newPaths = paths.map(p => p.id === updated.id ? updated : p);
@@ -192,40 +217,17 @@ const LearningPathPage: React.FC = () => {
 
     toast.success('Topic completed! 🎉');
 
-    // If the entire path is now complete, award coins + issue certificate
-    if (pathCompleted && completedPath) {
-      const path = completedPath as LearningPath;
-
-      // Award 500 coins for learning path completion
-      await awardCoins(500, 'learning_path_complete');
-      toast.success('🪙 +500 coins for completing your learning path!');
-
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const completedTopics = path.topics.filter(t => t.completed).length;
-        const masteryScore = Math.round((completedTopics / path.topics.length) * 100);
-
-        const certResult = await ensureLearningPathCertificate(
-          user.id,
-          path.id,
-          path.subject,
-          masteryScore,
-        );
-
-        if (certResult.created) {
-          toast.success('🎓 Certificate earned! Check your certificates page.');
-        } else if (certResult.error) {
-          console.error('Failed to issue certificate:', certResult.error);
-          toast.error('Completed path saved, but certificate creation failed. Please try again.');
-        }
-      } catch (err) {
-        console.error('Failed to issue certificate:', err);
-        toast.error('Completed path saved, but certificate creation failed. Please try again.');
+    // Use setTimeout to ensure state setter has run
+    setTimeout(async () => {
+      if (!updatedPath) return;
+      const allDone = updatedPath.topics.every(t => t.completed);
+      if (allDone) {
+        await awardCoins(500, 'learning_path_complete');
+        toast.success('🪙 +500 coins for completing your learning path!');
+        await issueCertificateForPath(updatedPath);
       }
-    }
-  }, [awardCoins]);
+    }, 100);
+  }, [awardCoins, issueCertificateForPath]);
 
   // Selection Step
   if (step === 'select') {
@@ -486,6 +488,19 @@ const LearningPathPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Claim Certificate button for completed paths */}
+        {progress === 100 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Button
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold"
+              onClick={() => issueCertificateForPath(currentPath)}
+            >
+              <Award className="w-5 h-5 mr-2" />
+              Claim Certificate 🎓
+            </Button>
+          </motion.div>
+        )}
       </div>
     );
   }

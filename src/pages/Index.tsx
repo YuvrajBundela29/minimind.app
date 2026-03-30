@@ -102,7 +102,18 @@ const Index = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   
   // State Management
-  const [currentPage, setCurrentPage] = useState<NavigationId | 'auth' | 'terms' | 'privacy' | 'refund' | 'arena' | 'shop' | 'certificates' | 'gurudashboard' | 'explore' | 'account'>('home');
+  const [currentPage, setCurrentPageRaw] = useState<NavigationId | 'auth' | 'terms' | 'privacy' | 'refund' | 'arena' | 'shop' | 'certificates' | 'gurudashboard' | 'explore' | 'account'>('home');
+  
+  // Wrap setCurrentPage to track navigation history for back button
+  const setCurrentPage = useCallback((page: typeof currentPage) => {
+    setCurrentPageRaw(prev => {
+      if (page !== prev) {
+        pageHistoryRef.current.push(page);
+        window.history.pushState({ page }, '');
+      }
+      return page;
+    });
+  }, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>('en');
@@ -286,7 +297,10 @@ const Index = () => {
     }
   }, [currentQuestion, answers, hasAskedQuestion, chatHistories]);
   
-  // Hardware back button handler (double-back to exit)
+  // Navigation history stack for back button (moved ref declaration near other refs)
+  const pageHistoryRef = useRef<string[]>(['home']);
+
+  // Hardware back button handler
   useEffect(() => {
     // Push initial history state
     if (window.history.state === null) {
@@ -294,11 +308,16 @@ const Index = () => {
     }
     
     const handlePopState = (event: PopStateEvent) => {
-      // If on a subpage, navigate back to home
+      const stack = pageHistoryRef.current;
+
+      // If on a subpage, go back through page history
       if (currentPage !== 'home') {
         event.preventDefault();
-        window.history.pushState({ page: 'home' }, '');
-        setCurrentPage('home');
+        window.history.pushState({ page: 'back' }, '');
+        // Pop current page and go to previous
+        stack.pop();
+        const previousPage = stack[stack.length - 1] || 'home';
+        setCurrentPage(previousPage as typeof currentPage);
         return;
       }
       
