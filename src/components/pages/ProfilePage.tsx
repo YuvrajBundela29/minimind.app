@@ -275,7 +275,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
               // Auto-apply the best frame
               setSelectedFrameId(bestFrame.id);
               localStorage.setItem('minimind-avatar-frame', bestFrame.id);
-              await supabase.from('profiles').update({ selected_frame: bestFrame.id }).eq('user_id', user.id);
+              await supabase.from('profiles').upsert({ user_id: user.id, selected_frame: bestFrame.id }, { onConflict: 'user_id' });
             }
 
             // Show celebration popup
@@ -460,7 +460,14 @@ Return exactly this JSON shape:
     setSelectedFrameId(frameId);
     localStorage.setItem('minimind-avatar-frame', frameId);
     if (user) {
-      await supabase.from('profiles').update({ selected_frame: frameId }).eq('user_id', user.id);
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, selected_frame: frameId }, { onConflict: 'user_id' });
+      if (error) {
+        console.error('Failed to persist selected frame:', error);
+        toast.error('Could not save frame. Please try again.');
+        return;
+      }
     }
     toast.success('Frame updated!');
   };
@@ -579,7 +586,7 @@ Return exactly this JSON shape:
           achievements={celebrationAchievements}
           onClose={() => setCelebrationAchievements([])}
           onClaimFrame={handleSelectFrame}
-          totalQuestions={statistics?.total_questions || 0}
+          totalQuestions={profileQuestionCount}
           currentStreak={streakData.currentStreak}
         />
       )}
@@ -599,7 +606,7 @@ Return exactly this JSON shape:
         currentAvatarUrl={avatarUrl}
         currentFrameId={selectedFrameId}
         currentPresetAvatar={presetAvatar}
-        totalQuestions={statistics?.total_questions || 0}
+        totalQuestions={profileQuestionCount}
         currentStreak={streakData.currentStreak}
         onSelectFrame={handleSelectFrame}
         onSelectPresetAvatar={handleSelectPresetAvatar}
@@ -740,6 +747,68 @@ Return exactly this JSON shape:
 
         {/* Progress Tab */}
         <TabsContent value="progress" className="mt-4 space-y-4">
+          {/* AI Brain Analysis + Export */}
+          <Card className="p-5 bg-card/80 backdrop-blur-sm border-border/50 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-foreground">Auto Brain Analysis</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void analyzeBrainProfile(true)}
+                  disabled={analyzingBrain || profileQuestionCount < 3}
+                >
+                  {analyzingBrain ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void handleExportProgress()}
+                  disabled={analyzingBrain || profileQuestionCount < 3}
+                >
+                  <Download className="w-4 h-4 mr-1" /> Export
+                </Button>
+              </div>
+            </div>
+
+            {profileQuestionCount < 3 ? (
+              <p className="text-sm text-muted-foreground">Ask at least 3 questions to unlock auto analysis and export.</p>
+            ) : brainProfile ? (
+              <div className="space-y-3">
+                <p className="text-sm text-foreground">{brainProfile.summary}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-border p-3 bg-muted/30">
+                    <p className="text-xs font-semibold text-foreground mb-1">Strengths</p>
+                    <ul className="space-y-1">
+                      {brainProfile.strengths.map((s, i) => (
+                        <li key={i} className="text-xs text-muted-foreground">• {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-border p-3 bg-muted/30">
+                    <p className="text-xs font-semibold text-foreground mb-1">Growth Areas</p>
+                    <ul className="space-y-1">
+                      {brainProfile.growthAreas.map((g, i) => (
+                        <li key={i} className="text-xs text-muted-foreground">• {g}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border p-3 bg-primary/5">
+                  <p className="text-xs text-muted-foreground">Focus mode: <span className="text-foreground font-medium">{brainProfile.focusMode}</span></p>
+                  <p className="text-xs text-muted-foreground mt-1">Pattern: <span className="text-foreground font-medium">{brainProfile.learningPattern}</span></p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {analyzingBrain ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                {analyzingBrain ? 'Analyzing your learning style automatically...' : 'Preparing your analysis...'}
+              </div>
+            )}
+          </Card>
+
           {/* Mode Usage */}
           <Card className="p-5 bg-card/80 backdrop-blur-sm border-border/50">
             <div className="flex items-center gap-2 mb-4">
