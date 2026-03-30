@@ -148,8 +148,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
+      const { data: usageRows } = await supabase
+        .from('usage_logs')
+        .select('mode')
+        .eq('user_id', user.id);
+
+      const usageFromDb: Record<ModeKey, number> = { beginner: 0, thinker: 0, story: 0, mastery: 0 };
+      (usageRows ?? []).forEach((row: { mode: string | null }) => {
+        const mode = row.mode as ModeKey;
+        if (mode in usageFromDb) {
+          usageFromDb[mode] += 1;
+        }
+      });
+      setModeUsage(usageFromDb);
+
       // Sync total_questions if out of date
       const realCount = actualQuestionCount ?? 0;
+      setProfileQuestionCount(realCount);
       if (statsData && statsData.total_questions !== realCount) {
         await supabase
           .from('user_statistics')
@@ -157,7 +172,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
           .eq('user_id', user.id);
         statsData.total_questions = realCount;
       }
-      
+
       if (statsData) {
         setStatistics(statsData);
       }
@@ -167,9 +182,18 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         .select('*')
         .eq('user_id', user.id)
         .single();
-      
+
       if (settingsData) {
         setSettings(settingsData);
+      }
+
+      const cachedBrainProfile = localStorage.getItem(`minimind-brain-profile-${user.id}`);
+      if (cachedBrainProfile) {
+        try {
+          setBrainProfile(JSON.parse(cachedBrainProfile));
+        } catch {
+          localStorage.removeItem(`minimind-brain-profile-${user.id}`);
+        }
       }
 
       // Fetch streak data first (used for badge unlock checks)
