@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
+import {
   User, Trophy, Flame, Calendar, Edit2, Save, X, LogOut,
-  TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles
+  TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles, Download, Loader2, RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureBadgeCertificate } from '@/services/certificateService';
+import AIService from '@/services/aiService';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModeKey, modes } from '@/config/minimind';
 import { AvatarCustomizer, AvatarWithFrame } from '@/components/AvatarCustomizer';
