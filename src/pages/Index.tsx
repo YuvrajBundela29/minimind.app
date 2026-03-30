@@ -286,7 +286,10 @@ const Index = () => {
     }
   }, [currentQuestion, answers, hasAskedQuestion, chatHistories]);
   
-  // Hardware back button handler (double-back to exit)
+  // Navigation history stack for back button
+  const pageHistoryRef = useRef<string[]>(['home']);
+
+  // Hardware back button handler
   useEffect(() => {
     // Push initial history state
     if (window.history.state === null) {
@@ -294,11 +297,16 @@ const Index = () => {
     }
     
     const handlePopState = (event: PopStateEvent) => {
-      // If on a subpage, navigate back to home
+      const stack = pageHistoryRef.current;
+
+      // If on a subpage, go back through page history
       if (currentPage !== 'home') {
         event.preventDefault();
-        window.history.pushState({ page: 'home' }, '');
-        setCurrentPage('home');
+        window.history.pushState({ page: 'back' }, '');
+        // Pop current page and go to previous
+        stack.pop();
+        const previousPage = stack[stack.length - 1] || 'home';
+        setCurrentPage(previousPage as typeof currentPage);
         return;
       }
       
