@@ -251,12 +251,16 @@ Return a JSON with these exact keys:
       >
         <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
           <Flame className="w-6 h-6 text-amber-500 mb-2" />
-          <p className="text-2xl font-bold text-foreground">{stats.streak}</p>
+          {streakLoading ? (
+            <Skeleton className="h-8 w-12 mb-1" />
+          ) : (
+            <p className="text-2xl font-bold text-foreground">{streakCount}</p>
+          )}
           <p className="text-xs text-muted-foreground">Day Streak</p>
         </Card>
         <Card className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
           <Brain className="w-6 h-6 text-purple-500 mb-2" />
-          <p className="text-2xl font-bold text-foreground">{stats.totalQuestions}</p>
+          <p className="text-2xl font-bold text-foreground">{totalLogs}</p>
           <p className="text-xs text-muted-foreground">Questions Asked</p>
         </Card>
         <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
