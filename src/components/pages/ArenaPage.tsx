@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import AIService from '@/services/aiService';
+import { useCoins } from '@/hooks/useCoins';
 
 interface ArenaChallenge {
   id: string;
@@ -31,6 +32,7 @@ interface LeaderboardEntry {
 }
 
 const ArenaPage: React.FC = () => {
+  const { awardCoins } = useCoins();
   const [challenge, setChallenge] = useState<ArenaChallenge | null>(null);
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -206,7 +208,11 @@ const ArenaPage: React.FC = () => {
         });
       }
 
-      toast.success(`🏆 You earned ${earnedCredits} credits!`);
+      // Award coins based on score (10-50 coins)
+      const coinsEarned = Math.max(10, Math.round(rawScore / 2));
+      await awardCoins(coinsEarned, 'arena_completion');
+
+      toast.success(`🏆 You earned ${earnedCredits} credits and 🪙 ${coinsEarned} coins!`);
     } catch (error) {
       console.error('Arena submission error:', error);
       toast.error('Failed to submit. Please try again.');

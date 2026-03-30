@@ -26,6 +26,7 @@ import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import { useNotificationEngine } from '@/hooks/useNotificationEngine';
 import StudyBuddy from '@/components/StudyBuddy';
 import CoinBadge from '@/components/CoinBadge';
+import { useCoins } from '@/hooks/useCoins';
 
 // Lazy load heavy page components
 const EkaksharPage = React.lazy(() => import('@/components/pages/EkaksharPage'));
@@ -86,6 +87,16 @@ const STAGGER_DELAY = 300; // ms between API calls
 const Index = () => {
   const { isEarlyAccess } = useEarlyAccess();
   useNotificationEngine();
+  const { checkDailyLoginReward } = useCoins();
+  
+  // Award daily login coins
+  useEffect(() => {
+    checkDailyLoginReward().then(coins => {
+      if (coins > 0) {
+        toast.success(`🪙 +${coins} coins for daily login!`);
+      }
+    });
+  }, [checkDailyLoginReward]);
   
   // AbortController for cancelling pending requests
   const abortControllerRef = useRef<AbortController | null>(null);

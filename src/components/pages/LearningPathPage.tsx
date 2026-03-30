@@ -6,7 +6,9 @@ import {
   GraduationCap, Rocket, Star, TrendingUp, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useSubscription, CREDIT_COSTS } from '@/contexts/SubscriptionContext';
+import { useCoins } from '@/hooks/useCoins';
 import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import { ModeKey, modes } from '@/config/minimind';
 import AIService from '@/services/aiService';
@@ -57,6 +59,7 @@ const LEVELS = [
 const LearningPathPage: React.FC = () => {
   const { tier, hasCredits, useCredits, getCredits, showUpgradePrompt } = useSubscription();
   const { isEarlyAccess } = useEarlyAccess();
+  const { awardCoins } = useCoins();
   const [step, setStep] = useState<'select' | 'path' | 'topic'>('select');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
@@ -161,13 +164,23 @@ const LearningPathPage: React.FC = () => {
     }
   }, [currentPath, hasCredits, useCredits, showUpgradePrompt, isEarlyAccess]);
 
-  const markTopicComplete = useCallback((topicId: string) => {
+  const markTopicComplete = useCallback(async (topicId: string) => {
+    let pathCompleted = false;
+    let completedPath: LearningPath | null = null;
+
     setCurrentPath(prev => {
       if (!prev) return null;
       const updatedTopics = prev.topics.map(t => t.id === topicId ? { ...t, completed: true } : t);
       const newIndex = Math.min(prev.currentIndex + 1, updatedTopics.length - 1);
       const updated = { ...prev, topics: updatedTopics, currentIndex: newIndex };
       
+      // Check if all topics are now completed
+      const allDone = updatedTopics.every(t => t.completed);
+      if (allDone) {
+        pathCompleted = true;
+        completedPath = updated;
+      }
+
       setSavedPaths(paths => {
         const newPaths = paths.map(p => p.id === updated.id ? updated : p);
         localStorage.setItem('minimind-learning-paths', JSON.stringify(newPaths));
@@ -175,8 +188,40 @@ const LearningPathPage: React.FC = () => {
       });
       return updated;
     });
+
     toast.success('Topic completed! 🎉');
-  }, []);
+
+    // If the entire path is now complete, award coins + issue certificate
+    if (pathCompleted && completedPath) {
+      const path = completedPath as LearningPath;
+      
+      // Award 500 coins for learning path completion
+      await awardCoins(500, 'learning_path_complete');
+      toast.success('🪙 +500 coins for completing your learning path!');
+
+      // Issue certificate
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const completedTopics = path.topics.filter(t => t.completed).length;
+          const masteryScore = Math.round((completedTopics / path.topics.length) * 100);
+          const certCode = `MINI-CERT-${user.id.slice(0, 8).toUpperCase()}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+
+          await supabase.from('certificates').insert({
+            user_id: user.id,
+            learning_path_id: path.id,
+            learning_path_name: path.subject,
+            mastery_score: masteryScore,
+            certificate_code: certCode,
+          });
+
+          toast.success('🎓 Certificate earned! Check your certificates page.');
+        }
+      } catch (err) {
+        console.error('Failed to issue certificate:', err);
+      }
+    }
+  }, [awardCoins]);
 
   // Selection Step
   if (step === 'select') {
