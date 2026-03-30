@@ -173,6 +173,7 @@ const Index = () => {
   
   // Credit exhaustion modal
   const [showCreditExhaustion, setShowCreditExhaustion] = useState(false);
+  const [celebrationAchievements, setCelebrationAchievements] = useState<Array<{ id: string; name: string; icon: string; description: string }>>([]);
   
   // Back button handler ref
   const backPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
