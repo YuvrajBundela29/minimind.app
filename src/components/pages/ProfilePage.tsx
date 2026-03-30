@@ -60,6 +60,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
   const [selectedFrameId, setSelectedFrameId] = useState('default');
   const [presetAvatar, setPresetAvatar] = useState<string | null>(null);
   const [streakData, setStreakData] = useState({ currentStreak: 0 });
+  const [celebrationAchievements, setCelebrationAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
     fetchUserData();
@@ -214,7 +215,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
               toUnlock.map((achievement) => ensureBadgeCertificate(user.id, achievement.id, achievement.name))
             );
 
-            toast.success(`🏅 ${toUnlock.length} new badge${toUnlock.length > 1 ? 's' : ''} unlocked with certificates!`);
+            // Show celebration popup instead of toast
+            setCelebrationAchievements(toUnlock.map(a => ({
+              ...a,
+              unlocked: true,
+              unlocked_at: unlockedAt,
+            })));
           }
         }
 
