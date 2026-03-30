@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { PurposeLensKey } from '@/config/minimind';
 import CreditBadge from '@/components/CreditBadge';
+import CoinBadge from '@/components/CoinBadge';
 import { AvatarWithFrame } from '@/components/AvatarCustomizer';
 
 interface MobileHeaderProps {
