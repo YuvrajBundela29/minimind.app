@@ -339,10 +339,10 @@ serve(async (req) => {
     const purposeLens = validateString(body.purposeLens, 100, "purposeLens") || "general";
     const customLensPrompt = validateString(body.customLensPrompt, 500, "customLensPrompt");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const NVIDIA_API_KEY = Deno.env.get("NVIDIA_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
+    if (!NVIDIA_API_KEY) {
+      console.error("NVIDIA_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: "Service configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -710,15 +710,18 @@ Then provide your detailed feedback:
     const userLabel = userId ?? "guest";
     console.log(`User ${userLabel} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${NVIDIA_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemma-3n-e2b-it",
         messages: apiMessages,
+        max_tokens: 1024,
+        temperature: 0.20,
+        top_p: 0.70,
         stream: false,
       }),
     });
