@@ -87,20 +87,9 @@ export async function checkAndUnlockAchievements(): Promise<UnlockedAchievement[
 
     if (bestFrame) {
       localStorage.setItem('minimind-avatar-frame', bestFrame.id);
-
-      const { data: updatedProfile, error: updateError } = await supabase
+      await supabase
         .from('profiles')
-        .update({ selected_frame: bestFrame.id })
-        .eq('user_id', user.id)
-        .select('user_id')
-        .maybeSingle();
-
-      if (updateError || !updatedProfile) {
-        await supabase.from('profiles').insert({
-          user_id: user.id,
-          selected_frame: bestFrame.id,
-        });
-      }
+        .upsert({ user_id: user.id, selected_frame: bestFrame.id }, { onConflict: 'user_id' });
     }
 
     return newlyUnlocked.map(a => ({
