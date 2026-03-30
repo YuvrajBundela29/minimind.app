@@ -10,6 +10,7 @@ interface ExplorePageProps {
 }
 
 const EXPLORE_ITEMS = [
+  { id: 'progressdashboard', label: 'Progress Dashboard', description: 'AI brain analysis & learning stats', icon: Target, gradient: 'from-indigo-500 to-blue-500', emoji: '📊' },
   { id: 'arena', label: 'Arena', description: 'Daily challenge — compete & win coins', icon: Trophy, gradient: 'from-amber-500 to-orange-500', emoji: '🏆' },
   { id: 'shop', label: 'Shop', description: 'Spend coins on themes & power-ups', icon: ShoppingBag, gradient: 'from-emerald-500 to-green-500', emoji: '🛍️' },
   { id: 'certificates', label: 'Certificates', description: 'Download your earned certificates', icon: Award, gradient: 'from-blue-500 to-cyan-500', emoji: '🎓' },
