@@ -187,9 +187,9 @@ const BottomInputBar: React.FC<BottomInputBarProps> = ({
           />
 
           {/* Bottom: Action row */}
-          <div className="flex items-center justify-between px-1 pb-1.5">
+          <div className="flex items-center justify-between px-2 pb-2 pt-0.5">
             {/* Left actions */}
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-1">
               {onFileAnalysis && (
                 <>
                   <input
@@ -227,13 +227,13 @@ const BottomInputBar: React.FC<BottomInputBarProps> = ({
               {onRefinePrompt && value.trim() && !attachedFile && (
                 <motion.button
                   type="button"
-                  className="input-action-btn"
+                  className="input-action-btn group"
                   onClick={onRefinePrompt}
                   whileTap={{ scale: 0.92 }}
                   aria-label="Refine prompt with AI"
                   disabled={isLoading || isRefining}
                 >
-                  <Wand2 className={`w-[18px] h-[18px] ${isRefining ? 'text-primary animate-pulse' : ''}`} />
+                  <Wand2 className={`w-[18px] h-[18px] ${isRefining ? 'text-primary animate-pulse' : 'group-hover:text-primary'}`} />
                 </motion.button>
               )}
             </div>
@@ -243,7 +243,7 @@ const BottomInputBar: React.FC<BottomInputBarProps> = ({
               type="button"
               onClick={handleSubmit}
               className={`send-btn-premium ${hasContent ? 'send-btn-active' : 'send-btn-inactive'}`}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.9 }}
               disabled={!hasContent || isLoading}
               aria-label="Send"
             >
