@@ -47,9 +47,8 @@ const RefundPolicyPage = React.lazy(() => import('@/components/pages/RefundPolic
 const ArenaPage = React.lazy(() => import('@/components/pages/ArenaPage'));
 const ShopPage = React.lazy(() => import('@/components/pages/ShopPage'));
 const CertificatePage = React.lazy(() => import('@/components/pages/CertificatePage'));
-const ParentDashboardPage = React.lazy(() => import('@/components/pages/ParentDashboardPage'));
 const GuruDashboardPage = React.lazy(() => import('@/components/pages/GuruDashboardPage'));
-const WrappedPage = React.lazy(() => import('@/components/pages/WrappedPage'));
+const ExplorePage = React.lazy(() => import('@/components/pages/ExplorePage'));
 
 // Types for history
 export interface HistoryItem {
@@ -102,7 +101,7 @@ const Index = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   
   // State Management
-  const [currentPage, setCurrentPage] = useState<NavigationId | 'auth' | 'terms' | 'privacy' | 'refund' | 'arena' | 'shop' | 'certificates' | 'parentdashboard' | 'gurudashboard' | 'wrapped'>('home');
+  const [currentPage, setCurrentPage] = useState<NavigationId | 'auth' | 'terms' | 'privacy' | 'refund' | 'arena' | 'shop' | 'certificates' | 'gurudashboard' | 'explore'>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>('en');
