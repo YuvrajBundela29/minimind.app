@@ -792,7 +792,25 @@ Then provide your detailed feedback:
       }),
     });
 
+    // Helper to refund credits on AI failure
+    const refundCredits = async () => {
+      if (creditCost > 0 && userId && adminClient) {
+        try {
+          await adminClient.rpc('refund_user_credit', {
+            p_user_id: userId,
+            p_cost: creditCost
+          });
+          console.log(`User ${userLabel} - Refunded ${creditCost} credits after AI failure`);
+        } catch (refundErr) {
+          console.error("Credit refund failed:", refundErr);
+        }
+      }
+    };
+
     if (!response.ok) {
+      // Refund credits since AI call failed
+      await refundCredits();
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limits exceeded. Please try again in a moment." }),
@@ -814,32 +832,15 @@ Then provide your detailed feedback:
     }
 
     const data = await response.json();
-    const generatedText = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+    const generatedText = data.choices?.[0]?.message?.content;
 
-    // --- SERVER-SIDE CREDIT DEDUCTION (after successful AI response) ---
-    let creditsRemaining: number | null = null;
-    let dailyRemaining: number | null = null;
-    let monthlyRemaining: number | null = null;
-
-    if (creditCost > 0 && userId && adminClient) {
-      try {
-        const { data: deductResult, error: deductError } = await adminClient.rpc('deduct_user_credit', {
-          p_user_id: userId,
-          p_cost: creditCost
-        });
-
-        if (deductError) {
-          console.error("Credit deduction error:", deductError.message);
-        } else if (deductResult) {
-          creditsRemaining = deductResult.credits_remaining ?? null;
-          dailyRemaining = deductResult.daily_remaining ?? null;
-          monthlyRemaining = deductResult.monthly_remaining ?? null;
-          console.log(`User ${userLabel} - Deducted ${creditCost} credits. Remaining: ${creditsRemaining}`);
-        }
-      } catch (e) {
-        console.error("Credit deduction exception:", e);
-        // Never block the response — user still gets their AI answer
-      }
+    if (!generatedText) {
+      // AI returned empty — refund
+      await refundCredits();
+      return new Response(
+        JSON.stringify({ error: "AI returned empty response. Credits refunded." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(
