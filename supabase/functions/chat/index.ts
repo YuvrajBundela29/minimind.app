@@ -16,6 +16,7 @@ const CREDIT_COSTS: Record<string, number> = {
   ekakshar_quick: 3,
   learning_path: 5,
   explain_back_evaluate: 2,
+  arena_evaluate: 0,
 };
 
 // Input validation constants
