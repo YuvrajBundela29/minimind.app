@@ -390,6 +390,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
 
   return (
     <div className="space-y-6 pb-24">
+      {/* Achievement Celebration Popup */}
+      {celebrationAchievements.length > 0 && (
+        <AchievementCelebration
+          achievements={celebrationAchievements}
+          onClose={() => setCelebrationAchievements([])}
+          onClaimFrame={handleSelectFrame}
+          totalQuestions={statistics?.total_questions || 0}
+          currentStreak={streakData.currentStreak}
+        />
+      )}
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
