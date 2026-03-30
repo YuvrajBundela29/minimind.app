@@ -1096,6 +1096,16 @@ const Index = () => {
         onOpenChange={setShowCreditExhaustion}
         onNavigateToSubscription={() => setCurrentPage('subscription')}
       />
+
+      {/* Achievement Celebration */}
+      {celebrationAchievements.length > 0 && (
+        <AchievementCelebration
+          achievements={celebrationAchievements}
+          onClose={() => setCelebrationAchievements([])}
+          totalQuestions={stats.totalQuestions}
+          currentStreak={stats.streak}
+        />
+      )}
     </div>
   );
 };
