@@ -5,6 +5,7 @@ import {
   TrendingUp, Brain, BarChart3, Camera, Upload, Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureBadgeCertificate } from '@/services/certificateService';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
@@ -139,22 +140,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         setSettings(settingsData);
       }
 
-      const { data: allAchievements } = await supabase.from('achievements').select('*');
-      const { data: userAchievements } = await supabase
-        .from('user_achievements')
-        .select('achievement_id, unlocked_at')
-        .eq('user_id', user.id);
-
-      if (allAchievements) {
-        const achievementsWithStatus = allAchievements.map(achievement => ({
-          ...achievement,
-          unlocked: userAchievements?.some(ua => ua.achievement_id === achievement.id),
-          unlocked_at: userAchievements?.find(ua => ua.achievement_id === achievement.id)?.unlocked_at
-        }));
-        setAchievements(achievementsWithStatus);
-      }
-
-      // Fetch streak data
+      // Fetch streak data first (used for badge unlock checks)
       const { data: streakRow } = await supabase
         .from('user_streaks')
         .select('current_streak')
@@ -162,6 +148,66 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onSignOut }) => {
         .single();
       if (streakRow) {
         setStreakData({ currentStreak: streakRow.current_streak });
+      }
+
+      const totalQuestions = statsData?.total_questions ?? 0;
+      const currentStreak = streakRow?.current_streak ?? 0;
+
+      const { data: allAchievements } = await supabase.from('achievements').select('*');
+      let { data: userAchievements } = await supabase
+        .from('user_achievements')
+        .select('achievement_id, unlocked_at')
+        .eq('user_id', user.id);
+
+      if (allAchievements) {
+        const unlockedIds = new Set((userAchievements ?? []).map(ua => ua.achievement_id));
+
+        const toUnlock = allAchievements.filter((achievement) => {
+          if (unlockedIds.has(achievement.id)) return false;
+
+          if (['total_questions', 'questions'].includes(achievement.requirement_type)) {
+            return totalQuestions >= achievement.requirement_value;
+          }
+
+          if (['streak', 'streak_days'].includes(achievement.requirement_type)) {
+            return currentStreak >= achievement.requirement_value;
+          }
+
+          return false;
+        });
+
+        if (toUnlock.length > 0) {
+          const unlockedAt = new Date().toISOString();
+          const { error: unlockError } = await supabase
+            .from('user_achievements')
+            .insert(
+              toUnlock.map((achievement) => ({
+                user_id: user.id,
+                achievement_id: achievement.id,
+                unlocked_at: unlockedAt,
+              }))
+            );
+
+          if (!unlockError) {
+            userAchievements = [
+              ...(userAchievements ?? []),
+              ...toUnlock.map((achievement) => ({ achievement_id: achievement.id, unlocked_at: unlockedAt })),
+            ];
+
+            await Promise.all(
+              toUnlock.map((achievement) => ensureBadgeCertificate(user.id, achievement.id, achievement.name))
+            );
+
+            toast.success(`🏅 ${toUnlock.length} new badge${toUnlock.length > 1 ? 's' : ''} unlocked with certificates!`);
+          }
+        }
+
+        const achievementsWithStatus = allAchievements.map(achievement => ({
+          ...achievement,
+          unlocked: userAchievements?.some(ua => ua.achievement_id === achievement.id),
+          unlocked_at: userAchievements?.find(ua => ua.achievement_id === achievement.id)?.unlocked_at
+        }));
+        setAchievements(achievementsWithStatus);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);

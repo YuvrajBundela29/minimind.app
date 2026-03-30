@@ -12,6 +12,7 @@ import { useCoins } from '@/hooks/useCoins';
 import { useEarlyAccess } from '@/contexts/EarlyAccessContext';
 import { ModeKey, modes } from '@/config/minimind';
 import AIService from '@/services/aiService';
+import { ensureLearningPathCertificate } from '@/services/certificateService';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import TrustFooter from '@/components/TrustFooter';
@@ -194,31 +195,34 @@ const LearningPathPage: React.FC = () => {
     // If the entire path is now complete, award coins + issue certificate
     if (pathCompleted && completedPath) {
       const path = completedPath as LearningPath;
-      
+
       // Award 500 coins for learning path completion
       await awardCoins(500, 'learning_path_complete');
       toast.success('🪙 +500 coins for completing your learning path!');
 
-      // Issue certificate
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const completedTopics = path.topics.filter(t => t.completed).length;
-          const masteryScore = Math.round((completedTopics / path.topics.length) * 100);
-          const certCode = `MINI-CERT-${user.id.slice(0, 8).toUpperCase()}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+        if (!user) return;
 
-          await supabase.from('certificates').insert({
-            user_id: user.id,
-            learning_path_id: path.id,
-            learning_path_name: path.subject,
-            mastery_score: masteryScore,
-            certificate_code: certCode,
-          });
+        const completedTopics = path.topics.filter(t => t.completed).length;
+        const masteryScore = Math.round((completedTopics / path.topics.length) * 100);
 
+        const certResult = await ensureLearningPathCertificate(
+          user.id,
+          path.id,
+          path.subject,
+          masteryScore,
+        );
+
+        if (certResult.created) {
           toast.success('🎓 Certificate earned! Check your certificates page.');
+        } else if (certResult.error) {
+          console.error('Failed to issue certificate:', certResult.error);
+          toast.error('Completed path saved, but certificate creation failed. Please try again.');
         }
       } catch (err) {
         console.error('Failed to issue certificate:', err);
+        toast.error('Completed path saved, but certificate creation failed. Please try again.');
       }
     }
   }, [awardCoins]);
