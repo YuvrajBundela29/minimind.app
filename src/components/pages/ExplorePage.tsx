@@ -16,7 +16,7 @@ const EXPLORE_ITEMS = [
   { id: 'learningpath', label: 'Learning Paths', description: 'AI-powered structured learning paths', icon: GraduationCap, gradient: 'from-violet-500 to-purple-500', emoji: '📚' },
   { id: 'purposelens', label: 'Identity', description: 'Set context: JEE, NEET, School & more', icon: Target, gradient: 'from-pink-500 to-rose-500', emoji: '🎯' },
   { id: 'explainback', label: 'Test Yourself', description: 'Explain concepts to check understanding', icon: MessageCircle, gradient: 'from-teal-500 to-cyan-500', emoji: '🧠' },
-  { id: 'ekakshar', label: 'Quick Recall', description: 'Flashcard-style one-word summaries', icon: Zap, gradient: 'from-yellow-500 to-amber-500', emoji: '⚡' },
+  { id: 'ekakshar', label: 'Compress Any Idea', description: 'Flashcard-style one-word summaries', icon: Zap, gradient: 'from-yellow-500 to-amber-500', emoji: '⚡' },
 ];
 
 const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate }) => {
