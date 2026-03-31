@@ -8,6 +8,7 @@ import { EarlyAccessProvider } from "@/contexts/EarlyAccessContext";
 import UpgradeModal from "@/components/UpgradeModal";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
             <UpgradeModal />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/update-password" element={<UpdatePasswordPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
