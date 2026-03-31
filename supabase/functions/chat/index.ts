@@ -339,10 +339,10 @@ serve(async (req) => {
     const purposeLens = validateString(body.purposeLens, 100, "purposeLens") || "general";
     const customLensPrompt = validateString(body.customLensPrompt, 500, "customLensPrompt");
 
-    const NVIDIA_API_KEY = Deno.env.get("NVIDIA_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
-    if (!NVIDIA_API_KEY) {
-      console.error("NVIDIA_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: "Service configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -710,14 +710,14 @@ Then provide your detailed feedback:
     const userLabel = userId ?? "guest";
     console.log(`User ${userLabel} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
 
-    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-3n-e2b-it",
+        model: "gemini-1.5-flash",
         messages: apiMessages,
         max_tokens: 1024,
         temperature: 0.20,
