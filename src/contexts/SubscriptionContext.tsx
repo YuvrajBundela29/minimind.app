@@ -426,8 +426,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { tier: checkoutTier, planType }
+      const { data, error } = await supabase.functions.invoke('payment', {
+        body: { action: 'create_order', planId: checkoutTier, planType }
       });
 
       if (error) throw error;
@@ -449,12 +449,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         name: 'MiniMind',
         description: `MiniMind ${checkoutTier.charAt(0).toUpperCase() + checkoutTier.slice(1)} - ${planType}`,
         handler: async function(response: any) {
-          const { error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
+          const { error: verifyError } = await supabase.functions.invoke('payment', {
             body: {
-              orderId: response.razorpay_order_id,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-              tier: checkoutTier,
+              action: 'verify_payment',
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId: checkoutTier,
               planType
             }
           });
@@ -502,8 +503,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('create-topup-order', {
-        body: { productId }
+      const { data, error } = await supabase.functions.invoke('payment', {
+        body: { action: 'create_order', planId: productId }
       });
 
       if (error) throw error;
@@ -526,12 +527,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         name: 'MiniMind',
         description: product ? `${product.name} - ${product.credits} credits` : 'Credit Top-up',
         handler: async function(response: any) {
-          const { error: verifyError } = await supabase.functions.invoke('verify-topup-payment', {
+          const { error: verifyError } = await supabase.functions.invoke('payment', {
             body: {
-              orderId: response.razorpay_order_id,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-              productId
+              action: 'verify_payment',
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId: productId
             }
           });
 
