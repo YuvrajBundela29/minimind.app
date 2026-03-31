@@ -84,12 +84,12 @@ function buildPurposeLensPrompt(purposeLens: string, customLensPrompt?: string):
 The user has defined their learning purpose as: "${customLensPrompt}"
 Adapt your explanation to match this specific context. Use examples, tone, and relevance that align with their stated purpose.`;
   }
-  
+
   const adapter = purposeLensAdapters[purposeLens];
   if (!adapter || purposeLens === 'general') {
     return '';
   }
-  
+
   return `\n\nPURPOSE LENS ADAPTATION:
 Context: ${adapter.context}
 Examples to use: ${adapter.examples}
@@ -260,7 +260,7 @@ function validateMessages(messages: unknown): Array<{ role: string; content: str
   if (messages === undefined || messages === null) return null;
   if (!Array.isArray(messages)) throw new Error("messages must be an array");
   if (messages.length > MAX_MESSAGES_COUNT) throw new Error(`messages cannot exceed ${MAX_MESSAGES_COUNT} items`);
-  
+
   return messages.map((msg, index) => {
     if (typeof msg !== "object" || msg === null) throw new Error(`messages[${index}] must be an object`);
     const { role, content } = msg as { role: unknown; content: unknown };
@@ -330,7 +330,7 @@ serve(async (req) => {
     }
 
     const body = requestBody as Record<string, unknown>;
-    
+
     const prompt = validateString(body.prompt, MAX_PROMPT_LENGTH, "prompt");
     const mode = validateEnum(body.mode, VALID_MODES, "mode", "beginner");
     const language = validateEnum(body.language, VALID_LANGUAGES, "language", "en");
@@ -339,10 +339,10 @@ serve(async (req) => {
     const purposeLens = validateString(body.purposeLens, 100, "purposeLens") || "general";
     const customLensPrompt = validateString(body.customLensPrompt, 500, "customLensPrompt");
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    
-    if (!GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is not configured");
+    const NVIDIA_API_KEY = Deno.env.get("NVIDIA_API_KEY");
+
+    if (!NVIDIA_API_KEY) {
+      console.error("NVIDIA_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: "Service configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -351,13 +351,13 @@ serve(async (req) => {
 
     // --- SERVER-SIDE CREDIT DEDUCTION (BEFORE AI call) ---
     const creditCost = getCreditCost(type, mode);
-    
+
     // Create admin client for credit operations (bypasses RLS) only for authenticated users
     const adminClient = userId
       ? createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        )
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      )
       : null;
 
     // Deduct credits atomically BEFORE the AI call to prevent race conditions
@@ -383,10 +383,10 @@ serve(async (req) => {
         if (deductResult && !deductResult.success) {
           if (deductResult.error === 'credits_exhausted') {
             return new Response(
-              JSON.stringify({ 
-                error: "credits_exhausted", 
+              JSON.stringify({
+                error: "credits_exhausted",
                 tier: deductResult.tier,
-                credits_remaining: deductResult.credits_remaining ?? 0 
+                credits_remaining: deductResult.credits_remaining ?? 0
               }),
               { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
@@ -700,28 +700,30 @@ Then provide your detailed feedback:
       systemPrompt = `${systemPrompt}${purposePrompt}\n\n${langPrompt}`;
     }
 
-    const apiMessages = type === "continue" && messages 
+    const apiMessages = type === "continue" && messages
       ? [{ role: "system", content: systemPrompt }, ...messages]
       : [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ];
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ];
 
     const userLabel = userId ?? "guest";
     console.log(`User ${userLabel} - Processing ${type} request, mode: ${mode}, language: ${language}, cost: ${creditCost}`);
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+        "Accept": "application/json",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-flash",
+        model: "meta/llama-3.3-70b-instruct",
         messages: apiMessages,
-        max_tokens: 1024,
-        temperature: 0.20,
-        top_p: 0.70,
+        max_tokens: 4096,
+        temperature: 0.7,
+        top_p: 0.95,
+        seed: 42,
         stream: false,
       }),
     });
@@ -778,7 +780,7 @@ Then provide your detailed feedback:
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         response: generatedText,
         credits_remaining: creditsRemaining,
         daily_remaining: dailyRemaining,
@@ -788,11 +790,11 @@ Then provide your detailed feedback:
     );
   } catch (error) {
     console.error("Chat function error:", error instanceof Error ? error.message : "Unknown error");
-    
+
     const errorMessage = error instanceof Error && error.message.includes("must be")
       ? error.message
       : "An error occurred processing your request";
-    
+
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
