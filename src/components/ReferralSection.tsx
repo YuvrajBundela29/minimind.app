@@ -52,7 +52,7 @@ const ReferralSection: React.FC = () => {
 
   const handleCopy = async () => {
     if (!data.code) return;
-    const shareText = `Join MiniMind and get 50 bonus credits! Use my referral code: ${data.code}\n\nhttps://minimindworkgd.lovable.app`;
+    const shareText = `Join MiniMind and get 50 bonus credits! Use my referral code: ${data.code}\n\nhttps://minimind.app`;
     await navigator.clipboard.writeText(shareText);
     setCopied(true);
     toast.success('Referral link copied!');
@@ -64,7 +64,7 @@ const ReferralSection: React.FC = () => {
     const shareText = `Join MiniMind and get 50 bonus credits! Use my referral code: ${data.code}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'MiniMind Referral', text: shareText, url: 'https://minimindworkgd.lovable.app' });
+        await navigator.share({ title: 'MiniMind Referral', text: shareText, url: 'https://minimind.app' });
       } catch {}
     } else {
       handleCopy();

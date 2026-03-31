@@ -1,4 +1,4 @@
-// MiniMind AI Service - Connects to Lovable AI via Edge Function
+// MiniMind AI Service - Connects to Supabase Edge Function
 import { supabase } from "@/integrations/supabase/client";
 
 export interface PurposeLensOptions {

@@ -45,7 +45,7 @@ Final `capacitor.config.ts` should look like:
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.f93d0039952940e8a18364e3cff47ac5',
+  appId: 'com.minimind.app',
   appName: 'MiniMind',
   webDir: 'dist',
 };
@@ -222,7 +222,7 @@ Before uploading to Google Play Console:
 - [ ] App icon (512x512 PNG) — high-res
 - [ ] Feature graphic (1024x500 PNG)
 - [ ] At least 4 screenshots (phone) — 16:9 or 9:16
-- [ ] Privacy Policy URL: https://minimindworkgd.lovable.app/privacy
+- [ ] Privacy Policy URL: https://minimind.app/privacy
 - [ ] Short description (80 chars): "AI-powered learning — any topic explained 4 ways"
 - [ ] Full description (4000 chars): See below
 - [ ] App category: Education
