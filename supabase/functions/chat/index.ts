@@ -717,7 +717,7 @@ Then provide your detailed feedback:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         messages: apiMessages,
         max_tokens: 1024,
         temperature: 0.20,
